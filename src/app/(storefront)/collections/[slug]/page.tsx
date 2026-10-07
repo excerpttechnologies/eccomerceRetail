@@ -6,7 +6,6 @@ import { parseProductListParams } from "@/lib/api/query";
 import { getMasterData, getSite } from "@/repositories";
 import { collectionToListParams } from "@/repositories/web/site.repository";
 import { Listing } from "@/components/listing/listing";
-import { getBarcodeImageSeries } from "@/lib/barcode-image-series";
 
 type SP = Record<string, string | string[] | undefined>;
 const toSearchParams = (sp: SP) => {
@@ -46,17 +45,11 @@ export default async function CollectionPage({ params, searchParams }: { params:
   const listParams: ProductListParams = { ...urlParams, ...r.base, filters: { ...(urlParams.filters ?? {}), ...(r.base.filters ?? {}) } };
 
   if (r.kind === "category") {
-    const rootCategory = r.parent ?? r.category;
-    const fabricImages = rootCategory.name.toLowerCase().startsWith("fabric")
-      ? (await getBarcodeImageSeries("fabrics"))
-          .flatMap((series) => series.items)
-          .flatMap((item) => item.image ? [item.image] : [])
-      : [];
     const tree = await getMasterData().categories.tree();
     const node = tree.find((t) => t.slug === (r.parent?.slug ?? r.category.slug));
     const subs = node?.children ?? [];
     return (
-      <Listing title={r.category.name} breadcrumbs={[...(r.parent ? [{ label: r.parent.name, href: `/collections/${r.parent.slug}` }] : []), { label: r.category.name }]} params={listParams} erpImages={fabricImages}>
+      <Listing title={r.category.name} breadcrumbs={[...(r.parent ? [{ label: r.parent.name, href: `/collections/${r.parent.slug}` }] : []), { label: r.category.name }]} params={listParams}>
         {subs.length > 0 && (
           <div className="mt-6 flex flex-wrap gap-2">
             {subs.map((s) => (

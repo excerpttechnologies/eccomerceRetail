@@ -54,6 +54,8 @@ import {
   ReviewModel,
   RoleModel,
 } from "@/models/web/commerce.models";
+import { COLLECTION_BANNERS, HERO_IMAGES, LIFESTYLE_IMAGES, categoryImage, productImages } from "./site-images";
+
 faker.seed(2026);
 const pick = <T>(arr: readonly T[]) => faker.helpers.arrayElement(arr);
 const picks = <T>(arr: readonly T[], n: number) => faker.helpers.arrayElements(arr, n);
@@ -180,7 +182,7 @@ function makeProducts(storeId: Types.ObjectId) {
           hsnCode: cat.name === "Sarees" ? "5007" : "5208",
           stockQty,
           storeId,
-          images: [],
+          images: productImages(sku, color),
           videoUrl: faker.datatype.boolean(0.15) ? "https://www.w3schools.com/html/mov_bbb.mp4" : undefined,
           tags: [fabric.name, motif, color, ...occasions].map((t) => t.toLowerCase()),
           isNewArrival,
@@ -208,6 +210,7 @@ function makeCategories(subCategoryNames: Map<string, Set<string>>) {
         name: cat.name,
         parentId: null,
         slug: slugify(cat.name),
+        image: categoryImage(cat.name),
         sortOrder: order++,
         isActive: true,
       }),
@@ -220,6 +223,7 @@ function makeCategories(subCategoryNames: Map<string, Set<string>>) {
           name: sub,
           parentId: id,
           slug: slugify(sub),
+          image: categoryImage(sub, cat.name),
           sortOrder: subOrder++,
           isActive: true,
         }),
@@ -443,20 +447,20 @@ async function main() {
   await Menu.insertMany(makeMenu(categoryDocs, categoryIds, products));
 
   await Banner.insertMany([
-    { placement: "hero", title: "The Kanchipuram Edit", subtitle: "Temple borders, korvai weaves, twelve new colours for the wedding season.", ctaLabel: "Shop Kanchipuram", ctaHref: "/collections/sarees?fabric=Kanchipuram%20Silk", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 0 },
-    { placement: "hero", title: "Yanai Motif Sarees", subtitle: "The elephant, woven the way Kanchi has always woven it.", ctaLabel: "See the collection", ctaHref: "/collections/yanai-motif-sarees", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 1 },
-    { placement: "hero", title: "Everyday Handlooms", subtitle: "Linen, Chanderi and cotton — under ₹5,000.", ctaLabel: "Shop under ₹5,000", ctaHref: "/collections/under-5000", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 2 },
-    { placement: "lifestyle", title: "Bridal Trousseau", subtitle: "Book a private viewing at Bangalore Urban.", ctaLabel: "Plan a visit", ctaHref: "/store-locator", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 0 },
-    { placement: "lifestyle", title: "Festive Banarasi", subtitle: "Kadwa and cutwork weaves in jewel tones.", ctaLabel: "Shop Banarasi", ctaHref: "/collections/sarees?fabric=Banarasi%20Silk", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 1 },
+    { placement: "hero", title: "The Kanchipuram Edit", subtitle: "Temple borders, korvai weaves, twelve new colours for the wedding season.", ctaLabel: "Shop Kanchipuram", ctaHref: "/collections/sarees?fabric=Kanchipuram%20Silk", image: { ...HERO_IMAGES[0], alt: "Kanchipuram silk saree" }, sortOrder: 0 },
+    { placement: "hero", title: "Yanai Motif Sarees", subtitle: "The elephant, woven the way Kanchi has always woven it.", ctaLabel: "See the collection", ctaHref: "/collections/yanai-motif-sarees", image: { ...HERO_IMAGES[1], alt: "Elephant motif saree" }, sortOrder: 1 },
+    { placement: "hero", title: "Everyday Handlooms", subtitle: "Linen, Chanderi and cotton — under ₹5,000.", ctaLabel: "Shop under ₹5,000", ctaHref: "/collections/under-5000", image: { ...HERO_IMAGES[2], alt: "Linen saree" }, sortOrder: 2 },
+    { placement: "lifestyle", title: "Bridal Trousseau", subtitle: "Book a private viewing at Bangalore Urban.", ctaLabel: "Plan a visit", ctaHref: "/store-locator", image: { desktop: LIFESTYLE_IMAGES[0], alt: "Bridal sarees" }, sortOrder: 0 },
+    { placement: "lifestyle", title: "Festive Banarasi", subtitle: "Kadwa and cutwork weaves in jewel tones.", ctaLabel: "Shop Banarasi", ctaHref: "/collections/sarees?fabric=Banarasi%20Silk", image: { desktop: LIFESTYLE_IMAGES[1], alt: "Banarasi sarees" }, sortOrder: 1 },
   ]);
 
   const featuredSkus = meta.filter((m) => m.isFeatured).slice(0, 12).map((m) => m.sku);
   await Collection.insertMany([
-    { name: "Yanai Motif Sarees", slug: "yanai-motif-sarees", description: "Sarees carrying the elephant motif — a symbol of strength and good fortune in Kanchi weaving.", type: "rule", rules: [{ key: "category", op: "eq", value: "sarees" }, { key: "motif", op: "in", value: ["Elephant (Yanai)"] }], isFeatured: true, sortOrder: 0, seoTitle: "Yanai (Elephant) Motif Sarees", seoDescription: "Handloom sarees with elephant motifs from Woven Essence, Bengaluru." },
-    { name: "Bridal Kanchipuram", slug: "bridal-kanchipuram", description: "Heavy silks with broad temple borders for the mandap.", type: "rule", rules: [{ key: "fabric", op: "in", value: ["Kanchipuram Silk"] }, { key: "occasion", op: "in", value: ["Bridal", "Wedding"] }], isFeatured: true, sortOrder: 1 },
-    { name: "Festive Banarasi", slug: "festive-banarasi", description: "Kadwa, cutwork and tanchoi weaves in jewel tones.", type: "rule", rules: [{ key: "fabric", op: "in", value: ["Banarasi Silk"] }, { key: "occasion", op: "in", value: ["Festive", "Party"] }], isFeatured: true, sortOrder: 2 },
-    { name: "Under ₹5,000", slug: "under-5000", description: "Everyday handlooms that don't compromise on the weave.", type: "rule", rules: [{ key: "priceMax", op: "lte", value: 5000 }], isFeatured: true, sortOrder: 3 },
-    { name: "Editor's Picks", slug: "editors-picks", description: "Hand-picked by the Temple Fabrics team this season.", type: "manual", skus: featuredSkus, isFeatured: false, sortOrder: 4 },
+    { name: "Yanai Motif Sarees", slug: "yanai-motif-sarees", description: "Sarees carrying the elephant motif — a symbol of strength and good fortune in Kanchi weaving.", type: "rule", rules: [{ key: "category", op: "eq", value: "sarees" }, { key: "motif", op: "in", value: ["Elephant (Yanai)"] }], banner: { desktop: COLLECTION_BANNERS["yanai-motif-sarees"] }, isFeatured: true, sortOrder: 0, seoTitle: "Yanai (Elephant) Motif Sarees", seoDescription: "Handloom sarees with elephant motifs from Woven Essence, Bengaluru." },
+    { name: "Bridal Kanchipuram", slug: "bridal-kanchipuram", description: "Heavy silks with broad temple borders for the mandap.", type: "rule", rules: [{ key: "fabric", op: "in", value: ["Kanchipuram Silk"] }, { key: "occasion", op: "in", value: ["Bridal", "Wedding"] }], banner: { desktop: COLLECTION_BANNERS["bridal-kanchipuram"] }, isFeatured: true, sortOrder: 1 },
+    { name: "Festive Banarasi", slug: "festive-banarasi", description: "Kadwa, cutwork and tanchoi weaves in jewel tones.", type: "rule", rules: [{ key: "fabric", op: "in", value: ["Banarasi Silk"] }, { key: "occasion", op: "in", value: ["Festive", "Party"] }], banner: { desktop: COLLECTION_BANNERS["festive-banarasi"] }, isFeatured: true, sortOrder: 2 },
+    { name: "Under ₹5,000", slug: "under-5000", description: "Everyday handlooms that don't compromise on the weave.", type: "rule", rules: [{ key: "priceMax", op: "lte", value: 5000 }], banner: { desktop: COLLECTION_BANNERS["under-5000"] }, isFeatured: true, sortOrder: 3 },
+    { name: "Editor's Picks", slug: "editors-picks", description: "Hand-picked by the Temple Fabrics team this season.", type: "manual", skus: featuredSkus, banner: { desktop: COLLECTION_BANNERS["editors-picks"] }, isFeatured: false, sortOrder: 4 },
   ]);
 
   await Cms.insertMany([

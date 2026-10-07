@@ -70,11 +70,6 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
 
   private match(params: BarcodeListParams): FilterQuery<AnyDoc> {
     const and: FilterQuery<AnyDoc>[] = [];
-    if (params.seriesPrefix?.trim()) {
-      and.push({
-        [B.barcode]: new RegExp(`^${escapeRegex(params.seriesPrefix.trim())}`, "i"),
-      });
-    }
     if (params.status) and.push({ [B.status]: params.status });
     if (params.group) and.push({ [B.groupId]: params.group });
     if (params.business) and.push({ [B.businessId]: params.business });
@@ -88,12 +83,9 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
   }
 
   /** Raw docs -> domain rows. A record that cannot be mapped is logged and skipped, never fatal. */
-  private async hydrate(
-    docs: AnyDoc[],
-    imageCheckDeadlineMs = IMAGE_DEADLINE_MS,
-  ): Promise<{ items: BarcodeProduct[]; skipped: number }> {
+  private async hydrate(docs: AnyDoc[]): Promise<{ items: BarcodeProduct[]; skipped: number }> {
     const opts = this.imageOptions();
-    const deadlineAt = Date.now() + imageCheckDeadlineMs;
+    const deadlineAt = Date.now() + IMAGE_DEADLINE_MS;
     let skipped = 0;
     const rows = await mapLimit(docs, IMAGE_CONCURRENCY, async (raw) => {
       try {
@@ -125,15 +117,7 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
       ]),
       Object.keys(match).length ? M.countDocuments(match) : M.estimatedDocumentCount(),
     ]);
-    const requestedDeadline =
-      typeof params.imageCheckDeadlineMs === "number" && Number.isFinite(params.imageCheckDeadlineMs)
-        ? params.imageCheckDeadlineMs
-        : IMAGE_DEADLINE_MS;
-    const imageCheckDeadlineMs = Math.min(30_000, Math.max(0, requestedDeadline));
-    const [{ items, skipped }, shared] = await Promise.all([
-      this.hydrate(docs, imageCheckDeadlineMs),
-      this.labelsPerBarcode(M, docs),
-    ]);
+    const [{ items, skipped }, shared] = await Promise.all([this.hydrate(docs), this.labelsPerBarcode(M, docs)]);
     for (const p of items) {
       const n = shared.get(p.barcode);
       if (n && n > 1) p.barcodeLabelCount = n;

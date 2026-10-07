@@ -187,18 +187,9 @@ export const HomepageSectionModel = (c: Connection) =>
 export const ProductWebMetaSchema = new Schema(
   {
     sku: { type: String, required: true, unique: true },
-    itemCode: String,
     slug: { type: String, required: true, unique: true },
     seoTitle: String,
     seoDescription: String,
-    barcodePriceOverride: { type: Number, min: 0 },
-    barcodeQtyOverride: { type: Number, min: 0 },
-    barcodeStatusOverride: String,
-    itemName: String,
-    barcodeName: String,
-    cardTitle: String,
-    cardDescription: String,
-    priceOverride: { type: Number, min: 0.01 },
     extraImages: { type: [String], default: [] },
     webTags: { type: [String], default: [] },
     isFeatured: { type: Boolean, default: false },

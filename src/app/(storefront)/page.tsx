@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
 import { getMasterData, getSite } from "@/repositories";
 import { collectionToListParams } from "@/repositories/web/site.repository";
-import { getBarcodeImageSeries } from "@/lib/barcode-image-series";
 import { getCategoryTree, getSettings } from "@/lib/site-data";
 import { HeroCarousel } from "@/components/home/hero-carousel";
-import { CategoryTiles, ChipStrip, ErpImageGallery, FeaturedCollections, HelpJump, InstagramStrip, LifestyleBanners, Newsletter, ProductSection, SupportPanel, Testimonials, TrustBadges } from "@/components/home/sections";
+import { CategoryTiles, ChipStrip, FeaturedCollections, HelpJump, InstagramStrip, LifestyleBanners, Newsletter, ProductSection, SupportPanel, Testimonials, TrustBadges } from "@/components/home/sections";
 
 export const metadata: Metadata = { title: "Handloom Sarees & Fabrics" };
 
-/** Home page is assembled from admin-orderable homepage sections. */
+/**
+ * Home page is assembled from `homepageSections` (admin-orderable). Every section
+ * reads its content from the DB; nothing here is hard-coded copy.
+ */
 export default async function Home() {
   const site = getSite();
   const master = getMasterData();
   const [settings, sections, supportSection] = await Promise.all([getSettings(), site.homepageSections(), site.homepageSection("support")]);
-  const fabricSeries = await getBarcodeImageSeries("fabrics");
-  const fabricImages = fabricSeries.flatMap((series) =>
-    series.items.flatMap((item) => item.image ? [item.image] : []),
-  );
 
   const rendered = await Promise.all(
     sections.map(async (s) => {
@@ -74,12 +72,5 @@ export default async function Home() {
     }),
   );
 
-  return (
-    <>
-      <ErpImageGallery images={fabricImages} />
-      {rendered}
-      {!supportSection && <SupportPanel title="How can we help?" contact={settings.contact} whatsappNumber={settings.whatsappNumber} />}
-      <HelpJump />
-    </>
-  );
+  return <>{rendered}{!supportSection && <SupportPanel title="How can we help?" contact={settings.contact} whatsappNumber={settings.whatsappNumber} />}<HelpJump /></>;
 }

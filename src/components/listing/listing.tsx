@@ -4,7 +4,6 @@ import type { ProductListParams } from "@/domain/types";
 import { getMasterData } from "@/repositories";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Empty } from "@/components/ui/empty";
-import { ErpImageGallery } from "@/components/home/sections";
 import { ProductGrid } from "@/components/product/product-grid";
 import { FacetSidebar } from "./facet-sidebar";
 import { Pagination, SortSelect } from "./toolbar";
@@ -15,13 +14,12 @@ interface Props {
   banner?: string | null;
   breadcrumbs: { label: string; href?: string }[];
   params: ProductListParams;
-  erpImages?: string[];
   /** Fixed params (category/collection rules) merged under URL params for facet counting. */
   children?: React.ReactNode;
 }
 
 /** Shared listing shell used by category, curated collection, new-arrivals and search pages. */
-export async function Listing({ title, description, banner, breadcrumbs, params, erpImages = [], children }: Props) {
+export async function Listing({ title, description, banner, breadcrumbs, params, children }: Props) {
   const master = getMasterData();
   const [result, facets] = await Promise.all([master.products.list(params), master.products.facets(params)]);
   return (
@@ -42,7 +40,6 @@ export async function Listing({ title, description, banner, breadcrumbs, params,
         </div>
       )}
       {children}
-      <ErpImageGallery images={erpImages} />
       <div className="mt-8 flex gap-8">
         <Suspense>
           <FacetSidebar facets={facets} />

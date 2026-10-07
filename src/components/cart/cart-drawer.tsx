@@ -8,7 +8,6 @@ import { Price } from "@/components/ui/price";
 import { useUi } from "@/store/ui";
 import { QtyStepper } from "./qty-stepper";
 import { formatMoney } from "@/lib/currency";
-import { ComingSoonImage } from "@/components/ui/coming-soon-image";
 
 export function CartDrawer() {
   const open = useUi((s) => s.cartOpen);
@@ -33,7 +32,7 @@ export function CartDrawer() {
           {lines.map((l) => (
             <li key={l.sku} className="flex gap-4 py-4">
               <Link href={`/products/${l.product.slug}`} onClick={() => setOpen(false)} className="relative h-28 w-20 shrink-0 overflow-hidden rounded-sm bg-line">
-                {l.product.images[0] ? <Image src={l.product.images[0]} alt={l.product.name} fill sizes="80px" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}
+                {l.product.images[0] && <Image src={l.product.images[0]} alt={l.product.name} fill sizes="80px" className="object-cover" />}
               </Link>
               <div className="flex min-w-0 flex-1 flex-col">
                 <Link href={`/products/${l.product.slug}`} onClick={() => setOpen(false)} className="line-clamp-2 text-sm hover:text-maroon">{l.product.name}</Link>

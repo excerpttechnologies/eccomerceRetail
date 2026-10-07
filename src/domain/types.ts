@@ -53,9 +53,6 @@ export interface Product {
   web?: {
     seoTitle?: string;
     seoDescription?: string;
-    cardTitle?: string;
-    cardDescription?: string;
-    priceOverride?: number;
     isFeatured?: boolean;
     salesCount?: number;
   };
@@ -75,9 +72,7 @@ export type ProductCard = Pick<
   | "stock"
   | "images"
   | "isNewArrival"
-> & Pick<Product, "source"> & {
-  web?: Pick<NonNullable<Product["web"]>, "cardTitle" | "cardDescription" | "priceOverride">;
-};
+> & Pick<Product, "source">;
 
 export interface Category {
   id: ID;
@@ -263,9 +258,6 @@ export interface BarcodeProduct {
 
 export interface BarcodeListParams {
   q?: string;
-  seriesPrefix?: string;
-  /** Internal storefront override to allow ERP image checks to finish before render. */
-  imageCheckDeadlineMs?: number;
   status?: string;
   group?: string;
   business?: string;

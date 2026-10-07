@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { parseBody } from "@/lib/api/body";
 import { fail, handler, ok } from "@/lib/api/response";
@@ -39,21 +38,7 @@ export const GET = handler(async (req: NextRequest) => {
     const metas = await ProductWebMetaModel(await getWebConnection())
       .find({ sku: { $in: Array.from(new Set(r.items.map((p) => p.barcode))) } })
       .lean();
-    for (const m of metas) {
-      web.set(m.sku, {
-        id: String(m._id),
-        slug: m.slug,
-        seoTitle: m.seoTitle,
-        seoDescription: m.seoDescription,
-        barcodePriceOverride: m.barcodePriceOverride,
-        barcodeQtyOverride: m.barcodeQtyOverride,
-        barcodeStatusOverride: m.barcodeStatusOverride,
-        itemName: m.itemName,
-        barcodeName: m.barcodeName,
-        isFeatured: m.isFeatured,
-        salesCount: m.salesCount,
-      });
-    }
+    for (const m of metas) web.set(m.sku, { id: String(m._id), slug: m.slug, seoTitle: m.seoTitle, seoDescription: m.seoDescription, isFeatured: m.isFeatured, salesCount: m.salesCount });
   } catch (e) {
     console.error("[admin/products] productWebMeta lookup failed:", redactMongoUri(String((e as Error)?.message ?? e)));
   }
@@ -65,24 +50,10 @@ export const GET = handler(async (req: NextRequest) => {
   );
 });
 
-/** PATCH /api/v1/admin/products — website-owned product overlay only. */
+/** PATCH /api/v1/admin/products { sku (= barcode), slug?, seoTitle?, seoDescription?, isFeatured?, extraImages? } — website-owned overlay only. */
 export const PATCH = handler(async (req: NextRequest) => {
   const actor = await requireAdmin("products:write");
-  const b = await parseBody(req, z.object({
-    sku: z.string().min(1).max(120),
-    slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
-    seoTitle: z.string().max(120).optional(),
-    seoDescription: z.string().max(240).optional(),
-    itemName: z.string().trim().max(160).nullable().optional(),
-    barcodeName: z.string().trim().max(160).nullable().optional(),
-    barcodePriceOverride: z.number().finite().min(0).max(100_000_000).nullable().optional(),
-    barcodeQtyOverride: z.number().finite().min(0).max(1_000_000).nullable().optional(),
-    barcodeStatusOverride: z.enum(["IN_STOCK", "IN_TRANSIT", "SOLD", "HISTORY", "VOID"]).nullable().optional(),
-    isFeatured: z.boolean().optional(),
-    extraImages: z.array(z.string()).optional(),
-    webTags: z.array(z.string()).optional(),
-  }).refine(({ slug, seoTitle, seoDescription, itemName, barcodeName, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags }) =>
-    [slug, seoTitle, seoDescription, itemName, barcodeName, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags].some((value) => value !== undefined)));
+  const b = await parseBody(req, z.object({ sku: z.string().min(1), slug: z.string().regex(/^[a-z0-9-]+$/).optional(), seoTitle: z.string().optional(), seoDescription: z.string().optional(), isFeatured: z.boolean().optional(), extraImages: z.array(z.string()).optional(), webTags: z.array(z.string()).optional() }));
   if (!b.ok) return b.res;
   const { sku, ...patch } = b.data;
   let product;
@@ -95,24 +66,8 @@ export const PATCH = handler(async (req: NextRequest) => {
   if (!product) return fail("NOT_FOUND", "Barcode not found in RetailERP", 404);
   const M = ProductWebMetaModel(await getWebConnection());
   const before = await M.findOne({ sku }).lean();
-  const set: Record<string, unknown> = {};
-  const unset: Record<string, 1> = {};
-  for (const key of ["itemName", "barcodeName", "barcodePriceOverride", "barcodeQtyOverride", "barcodeStatusOverride"] as const) {
-    const value = patch[key];
-    if (value === undefined) continue;
-    if (value !== null && value !== "") set[key] = value;
-    else unset[key] = 1;
-  }
-  for (const key of ["slug", "seoTitle", "seoDescription", "isFeatured", "extraImages", "webTags"] as const) {
-    const value = patch[key];
-    if (value !== undefined) set[key] = value;
-  }
   // A path may not appear in both $set and $setOnInsert (MongoDB error 40), so the default slug is only seeded when none was sent.
-  const update = {
-    $set: set,
-    ...(Object.keys(unset).length ? { $unset: unset } : {}),
-    ...(!before ? { $setOnInsert: { slug: `${product.slug.slice(0, 80)}-${randomUUID()}`, itemCode: `web:${sku}` } } : {}),
-  };
+  const update = patch.slug ? { $set: patch } : { $set: patch, $setOnInsert: { slug: product.slug } };
   let after;
   try {
     after = await M.findOneAndUpdate({ sku }, update, { upsert: true, new: true }).lean();

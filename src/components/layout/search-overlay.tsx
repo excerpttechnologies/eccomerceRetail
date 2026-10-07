@@ -1,5 +1,5 @@
 "use client";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Search, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,7 +9,6 @@ import type { ProductCard } from "@/domain/types";
 import { api } from "@/hooks/api";
 import { Price } from "@/components/ui/price";
 import { useUi } from "@/store/ui";
-import { ComingSoonImage } from "@/components/ui/coming-soon-image";
 
 export function SearchOverlay() {
   const open = useUi((s) => s.searchOpen);
@@ -31,9 +30,7 @@ export function SearchOverlay() {
     queryKey: ["search", debounced],
     queryFn: async () => (await api<ProductCard[]>(`/api/v1/products?q=${encodeURIComponent(debounced)}&limit=6`)).data,
     enabled: debounced.length >= 2 && open,
-    placeholderData: keepPreviousData,
   });
-  const waitingForCurrentQuery = q.trim().length >= 2 && (q.trim() !== debounced || isFetching);
 
   if (!open) return null;
   return (
@@ -55,26 +52,19 @@ export function SearchOverlay() {
         </form>
         <div className="max-h-[60vh] overflow-y-auto p-2">
           {debounced.length < 2 && <p className="p-4 text-sm text-muted">Try “Kanchipuram”, “Yanai”, “linen” or a colour.</p>}
-          {waitingForCurrentQuery && <p className="p-4 text-sm text-muted">Searching…</p>}
-          {!waitingForCurrentQuery && data?.length === 0 && <p className="p-4 text-sm text-muted">No products match “{debounced}”.</p>}
-          {q.trim().length >= 2 && data?.map((p) => (
-            <Link
-              key={p.id}
-              href={p.source === "erp" && p.images[0]
-                ? `/products/${p.slug}`
-                : `/products/${p.slug}?comingSoon=1&name=${encodeURIComponent(p.name)}`}
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3 rounded-sm p-2 hover:bg-olive/5"
-            >
-              <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-line">{p.images[0] ? <Image src={p.images[0]} alt="" fill sizes="48px" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}</div>
+          {isFetching && <p className="p-4 text-sm text-muted">Searching…</p>}
+          {data?.length === 0 && <p className="p-4 text-sm text-muted">No products match “{debounced}”.</p>}
+          {data?.map((p) => (
+            <Link key={p.id} href={`/products/${p.slug}`} onClick={() => setOpen(false)} className="flex items-center gap-3 rounded-sm p-2 hover:bg-olive/5">
+              <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-line">{p.images[0] && <Image src={p.images[0]} alt="" fill sizes="48px" className="object-cover" />}</div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{p.web?.cardTitle || p.name}</p>
+                <p className="truncate text-sm">{p.name}</p>
                 <p className="text-xs text-muted">{p.fabric}</p>
               </div>
               <Price amount={p.pricing.sellingPrice} size="sm" />
             </Link>
           ))}
-          {!waitingForCurrentQuery && data && data.length > 0 && (
+          {data && data.length > 0 && (
             <Link href={`/search?q=${encodeURIComponent(debounced)}`} onClick={() => setOpen(false)} className="block p-3 text-center text-xs uppercase tracking-widest text-maroon">
               See all results →
             </Link>

@@ -10,7 +10,6 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/enquiries", label: "Enquiries", perm: "customers:read", group: "Sales" },
   { href: "/admin/reports", label: "Reports", perm: "reports:read", group: "Sales" },
   { href: "/admin/products", label: "Products", perm: "products:read", group: "Catalogue" },
-  { href: "/admin/descriptions", label: "Descriptions", perm: ["products:read", "products:write"], group: "Catalogue" },
   { href: "/admin/inventory", label: "Inventory & sync", perm: "inventory:read", group: "Catalogue" },
   { href: "/admin/collections", label: "Collections", perm: "collections:write", group: "Catalogue" },
   { href: "/admin/menu", label: "Menu builder", perm: "menu:write", group: "Catalogue" },

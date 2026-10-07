@@ -492,11 +492,6 @@ export function toProductCard(p: Product): ProductCard {
     images: p.images,
     isNewArrival: p.isNewArrival,
     source: p.source,
-    web: p.web ? {
-      cardTitle: p.web.cardTitle,
-      cardDescription: p.web.cardDescription,
-      priceOverride: p.web.priceOverride,
-    } : undefined,
   };
 }
 
