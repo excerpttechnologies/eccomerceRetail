@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
 
-type Detail = Order & { customer: Customer | null; allowedTransitions: string[] };
+type Detail = Order & { customer: Customer | null; allowedTransitions: string[]; staffLinks?: Record<string, string> };
 
 export default function OrderDetail() {
   const { orderNo } = useParams<{ orderNo: string }>();
@@ -55,7 +55,10 @@ export default function OrderDetail() {
           {(o.statusHistory?.length ?? 0) > 0 && (
             <div>
               <p className="mb-2 text-[10px] uppercase tracking-widest text-muted">History</p>
-              <ul className="space-y-1 text-xs">{[...(o.statusHistory ?? [])].reverse().map((h, i) => <li key={i}><b>{h.status}</b> · {h.at ? new Date(h.at).toLocaleString("en-IN") : ""}{h.by ? ` · ${h.by}` : ""}{h.note ? ` — ${h.note}` : ""}</li>)}</ul>
+              <ul className="space-y-1 text-xs">{[...(o.statusHistory ?? [])].reverse().map((historyEntry, index) => {
+                const staffId = historyEntry.by ? o.staffLinks?.[historyEntry.by.toLowerCase()] : undefined;
+                return <li key={index}><b>{historyEntry.status}</b> · {historyEntry.at ? new Date(historyEntry.at).toLocaleString("en-IN") : ""}{historyEntry.by ? <> · {staffId ? <Link href={`/admin/staff/${staffId}`} className="text-olive underline underline-offset-2">{historyEntry.by}</Link> : historyEntry.by}</> : null}{historyEntry.note ? ` — ${historyEntry.note}` : ""}</li>;
+              })}</ul>
             </div>
           )}
         </div>

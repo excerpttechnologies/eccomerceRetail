@@ -146,6 +146,20 @@ export const RoleSchema = new Schema(
 export type RoleDoc = InferSchemaType<typeof RoleSchema> & { _id: Schema.Types.ObjectId };
 export const RoleModel = (c: Connection) => getModel<RoleDoc>(c, "Role", RoleSchema);
 
+const StaffProfileSchema = new Schema(
+  {
+    designation: String,
+    branch: String,
+    mobile: String,
+    joiningDate: Date,
+    photoUrl: String,
+    address: String,
+    emergencyContact: String,
+    notes: String,
+  },
+  { _id: false },
+);
+
 export const AdminUserSchema = new Schema(
   {
     name: { type: String, required: true },
@@ -153,6 +167,7 @@ export const AdminUserSchema = new Schema(
     passwordHash: { type: String, required: true },
     roleId: { type: Schema.Types.ObjectId, ref: "Role", required: true },
     isActive: { type: Boolean, default: true },
+    profile: { type: StaffProfileSchema },
     twoFactorEnabled: { type: Boolean, default: false },
     twoFactorSecret: String,
     failedAttempts: { type: Number, default: 0 },
@@ -163,7 +178,11 @@ export const AdminUserSchema = new Schema(
   { collection: "adminUsers", timestamps: true },
 );
 export type AdminUserDoc = InferSchemaType<typeof AdminUserSchema> & { _id: Schema.Types.ObjectId };
-export const AdminUserModel = (c: Connection) => getModel<AdminUserDoc>(c, "AdminUser", AdminUserSchema);
+export const AdminUserModel = (c: Connection) => {
+  const existing = c.models.AdminUser;
+  if (existing && !existing.schema.path("profile")) c.deleteModel("AdminUser");
+  return getModel<AdminUserDoc>(c, "AdminUser", AdminUserSchema);
+};
 
 export const AuditLogSchema = new Schema(
   {

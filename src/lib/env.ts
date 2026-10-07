@@ -11,6 +11,7 @@ const schema = z
     DATA_SOURCE: z.enum(["mock", "erp"]).default("mock"),
     MONGODB_URI: z.string().min(1).default("mongodb://localhost:27017"),
     WEB_DB_NAME: z.string().min(1).default("woven_essence_web"),
+    LEGACY_BRIDGE_BRANCH_ID: z.string().optional(),
     ERP_MONGODB_URI: z.string().optional(),
     /** Same as ERP_MONGODB_URI — the name the RetailERP backend's .env uses. ERP_MONGODB_URI wins if both are set. */
     ERP_MONGO_URI: z.string().optional(),
@@ -34,6 +35,7 @@ const schema = z
   .transform((e) => ({
     ...e,
     ERP_MONGODB_URI: blankToUndefined(e.ERP_MONGODB_URI) ?? blankToUndefined(e.ERP_MONGO_URI) ?? e.MONGODB_URI,
+    LEGACY_BRIDGE_BRANCH_ID: blankToUndefined(e.LEGACY_BRIDGE_BRANCH_ID),
     ERP_IMAGE_BASE: blankToUndefined(e.ERP_IMAGE_BASE)?.replace(/\/+$/, ""),
     ERP_IMAGE_SPACES_HOSTS: e.ERP_IMAGE_SPACES_HOSTS.split(",").map((h) => h.trim().toLowerCase()).filter(Boolean),
     DO_SPACES_KEY: blankToUndefined(e.DO_SPACES_KEY),

@@ -91,6 +91,28 @@ export function ProductSection({ title, subtitle, href, items }: { title?: strin
   );
 }
 
+export function ErpImageGallery({ images }: { images: string[] }) {
+  if (!images.length) return null;
+  return (
+    <Wrap className="py-8">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {images.map((image) => (
+          <div key={image} className="relative aspect-[3/4] overflow-hidden rounded-sm bg-line">
+            <Image
+              src={image}
+              alt="Fabric from the ERP catalog"
+              fill
+              unoptimized
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+              className="object-cover"
+            />
+          </div>
+        ))}
+      </div>
+    </Wrap>
+  );
+}
+
 export function ChipStrip({ title, subtitle, items }: { title?: string | null; subtitle?: string | null; items: { label: string; href: string; image?: string }[] }) {
   if (!items.length) return null;
   return (
@@ -99,7 +121,7 @@ export function ChipStrip({ title, subtitle, items }: { title?: string | null; s
       <div className="flex flex-wrap justify-center gap-3">
         {items.map((it) => (
           <Link key={it.href} href={it.href} className="group flex items-center gap-3 rounded-full border border-line bg-white/60 py-2 pl-2 pr-5 text-sm text-olive transition-colors hover:border-gold hover:bg-gold/5">
-            <span className="relative h-9 w-9 overflow-hidden rounded-full bg-line">{it.image && <Image src={it.image} alt="" fill sizes="36px" className="object-cover" />}</span>
+            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full">{it.image && <Image src={it.image} alt="" fill sizes="36px" className="object-cover" />}</span>
             {it.label}
           </Link>
         ))}

@@ -23,7 +23,7 @@ export default async function Success({ params }: { params: Promise<{ orderNo: s
         ))}
       </ul>
       <div className="mt-8 flex justify-center gap-3">
-        <Link href={`/account/orders/${order.orderNo}?phone=${order.shippingAddress.phone}`} className={buttonClass("outline")}>Track order</Link>
+        <Link href={`/track-order?orderNo=${encodeURIComponent(order.orderNo)}&phone=${encodeURIComponent(order.shippingAddress.phone ?? "")}`} className={buttonClass("outline")}>Track order</Link>
         <Link href="/" className={buttonClass("primary")}>Continue shopping</Link>
       </div>
     </div>

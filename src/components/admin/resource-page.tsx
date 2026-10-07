@@ -19,6 +19,7 @@ export interface ResourcePageProps<T> {
   filters?: { key: string; label: string; options: { value: string; label: string }[] }[];
   canCreate?: boolean;
   canDelete?: boolean;
+  canDeleteItem?: (row: T) => boolean;
   defaults?: Partial<T>;
   /** Extra row actions (e.g. approve/reject) */
   rowActions?: (row: T, mutate: (id: string, patch: any) => void) => React.ReactNode;
@@ -31,7 +32,7 @@ export function useAdminList<T>(resource: string, params: Record<string, string 
   return useQuery({ queryKey: ["admin", resource, qs], queryFn: async () => api<T[]>(`/api/v1/admin/${resource}?${qs}`) });
 }
 
-export function ResourcePage<T extends { _id: string }>({ resource, title, subtitle, columns, fields, filters, canCreate = true, canDelete = true, defaults, rowActions, sort, limit = 50 }: ResourcePageProps<T>) {
+export function ResourcePage<T extends { _id: string }>({ resource, title, subtitle, columns, fields, filters, canCreate = true, canDelete = true, canDeleteItem, defaults, rowActions, sort, limit = 50 }: ResourcePageProps<T>) {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -74,7 +75,7 @@ export function ResourcePage<T extends { _id: string }>({ resource, title, subti
           {editing !== null && (
             <SpecForm key={editing === "new" ? "new" : (editing as T)._id} mode={editing === "new" ? "create" : "edit"} fields={fields} initial={editing === "new" ? (defaults ?? {}) : editing} onSubmit={(v) => save.mutate(v)} busy={save.isPending} error={error} />
           )}
-          {editing && editing !== "new" && canDelete && (
+          {editing && editing !== "new" && canDelete && (!canDeleteItem || canDeleteItem(editing as T)) && (
             <button onClick={() => confirm("Delete this item?") && remove.mutate((editing as T)._id)} className="mt-6 flex items-center gap-1 text-xs uppercase tracking-widest text-red-700"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
           )}
         </div>

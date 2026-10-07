@@ -27,7 +27,7 @@ export async function Footer() {
           </div>
         </div>
         <FooterCol title="Shop" links={[...categories.map((c) => ({ label: c.name, href: `/collections/${c.slug}` })), { label: "New Arrivals", href: "/collections/new-arrivals" }, { label: "All collections", href: "/collections" }]} />
-        <FooterCol title="Help" links={[{ label: "Track your order", href: "/account/orders" }, { label: "Store locator", href: "/stores" }, { label: "Contact us", href: "/contact" }, ...info.map((p) => ({ label: p.title, href: `/pages/${p.slug}` }))]} />
+        <FooterCol title="Help" links={[{ label: "Track your order", href: "/track-order" }, { label: "Store locator", href: "/stores" }, { label: "Contact us", href: "/contact" }, ...info.map((p) => ({ label: p.title, href: `/pages/${p.slug}` }))]} />
         <FooterCol title="Policies" links={policies.map((p) => ({ label: p.title, href: `/pages/${p.slug}` }))} />
         <div className="md:col-span-2">
           <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.22em] text-gold">Newsletter</p>

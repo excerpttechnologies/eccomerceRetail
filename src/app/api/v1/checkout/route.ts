@@ -49,6 +49,10 @@ export const POST = handler(async (req: NextRequest) => {
   if (cart.totals.couponError) return fail("COUPON_INVALID", cart.totals.couponError, 422);
 
   const settings = await getSite().settings();
+  const serviceablePrefixes = settings.commerce?.serviceablePincodePrefixes ?? [];
+  if (serviceablePrefixes.length && !serviceablePrefixes.some((prefix) => b.data.address.pincode.startsWith(prefix))) {
+    return fail("PINCODE_UNSERVICEABLE", "We do not deliver to this pincode", 422);
+  }
   if (b.data.paymentMode === "COD" && settings.commerce?.codEnabled === false) return fail("COD_DISABLED", "Cash on delivery is not available", 422);
 
   // Razorpay two-step

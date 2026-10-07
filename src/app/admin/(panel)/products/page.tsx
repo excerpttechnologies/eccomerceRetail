@@ -5,23 +5,37 @@ import type { BarcodeFacets, BarcodeProduct, FacetOption } from "@/domain/types"
 import { api } from "@/hooks/api";
 import { formatINR } from "@/lib/utils";
 import { PageHeader, Pager, Table } from "@/components/admin/table";
-import { SpecForm } from "@/components/admin/form";
 import { ProductThumb } from "@/components/admin/product-thumb";
 import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Barcode } from "@/components/ui/barcode";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
-import { Input, Select } from "@/components/ui/input";
+import { Field, Input, Select } from "@/components/ui/input";
 
-type Row = BarcodeProduct & { _id: string; web: { slug: string; seoTitle?: string; seoDescription?: string; isFeatured?: boolean; salesCount?: number } | null };
+type Row = BarcodeProduct & {
+  _id: string;
+  web: {
+    slug: string;
+    seoTitle?: string;
+    seoDescription?: string;
+    itemName?: string;
+    barcodeName?: string;
+    barcodePriceOverride?: number;
+    barcodeQtyOverride?: number;
+    barcodeStatusOverride?: string;
+    isFeatured?: boolean;
+    salesCount?: number;
+  } | null;
+};
 type Filters = { status: string; group: string; business: string; uomType: string };
+type ProductEditValues = { itemName: string; barcodeName: string; price: string; quantity: string; status: string };
 
 const NO_FILTERS: Filters = { status: "", group: "", business: "", uomType: "" };
 const STATUS_TONE: Record<string, BadgeTone> = { IN_STOCK: "green", IN_TRANSIT: "blue", SOLD: "muted", HISTORY: "muted", VOID: "red" };
 const statusLabel = (s: string) => s.toLowerCase().replace(/_/g, " ");
-const fmtQty = (r: BarcodeProduct) => (r.qty == null ? null : `${r.qty.toLocaleString("en-IN", { maximumFractionDigits: 3 })}${r.uom ? ` ${r.uom}` : ""}`);
-const fmtDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : undefined);
-
+const effectivePrice = (row: Row) => row.web?.barcodePriceOverride ?? row.price;
+const effectiveQty = (row: Row) => row.web?.barcodeQtyOverride ?? row.qty;
+const effectiveStatus = (row: Row) => row.web?.barcodeStatusOverride ?? row.status;
 function FilterSelect({ label, value, options, onChange, format = (s) => s }: { label: string; value: string; options?: FacetOption[]; onChange: (v: string) => void; format?: (s: string) => string }) {
   if (!options?.length) return null;
   return (
@@ -39,6 +53,18 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [editing, setEditing] = useState<Row | null>(null);
+  const [itemName, setItemName] = useState("");
+  const [barcodeName, setBarcodeName] = useState("");
+  const [price, setPrice] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [status, setStatus] = useState("");
+  const [initialEditValues, setInitialEditValues] = useState<ProductEditValues>({
+    itemName: "",
+    barcodeName: "",
+    price: "",
+    quantity: "",
+    status: "",
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,8 +87,22 @@ export default function ProductsPage() {
   }, [stale, meta?.pages, page]);
 
   const save = useMutation({
-    mutationFn: (v: Record<string, unknown>) => api("/api/v1/admin/products", { method: "PATCH", json: { sku: editing!.barcode, slug: v.slug, seoTitle: v.seoTitle, seoDescription: v.seoDescription, isFeatured: v.isFeatured } }),
-    onSuccess: () => { setEditing(null); qc.invalidateQueries({ queryKey: ["admin", "products"] }); },
+    mutationFn: () => api("/api/v1/admin/products", {
+      method: "PATCH",
+      json: {
+        sku: editing!.barcode,
+        ...(itemName !== initialEditValues.itemName ? { itemName: itemName.trim() || null } : {}),
+        ...(barcodeName !== initialEditValues.barcodeName ? { barcodeName: barcodeName.trim() || null } : {}),
+        ...(price !== initialEditValues.price ? { barcodePriceOverride: price.trim() ? Number(price) : null } : {}),
+        ...(quantity !== initialEditValues.quantity ? { barcodeQtyOverride: quantity.trim() ? Number(quantity) : null } : {}),
+        ...(status !== initialEditValues.status ? { barcodeStatusOverride: status || null } : {}),
+      },
+    }),
+    onSuccess: () => {
+      setEditing(null);
+      setError(null);
+      qc.invalidateQueries({ queryKey: ["admin", "products"] });
+    },
     onError: (e) => setError((e as Error).message),
   });
 
@@ -72,7 +112,7 @@ export default function ProductsPage() {
         <Badge tone="green">Synced from RetailERP</Badge>
       </PageHeader>
       <p className="mb-4 rounded-sm border border-gold/40 bg-gold/5 p-3 text-xs text-ink/80">
-        Every row is a RetailERP barcode label. Name, price, quantity, status and images are owned by RetailERP and cannot be edited here. The website adds a slug, SEO fields and a “featured” flag on top.
+        Barcode and item code stay as supplied by RetailERP. Item name, barcode name, price, quantity and status changes are saved as website overrides.
       </p>
       <div className="mb-3 flex flex-wrap gap-2">
         <Input placeholder="Search barcode / item code / name…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
@@ -95,76 +135,88 @@ export default function ProductsPage() {
             loading={list.isLoading}
             loadingText="Loading products..."
             empty="No barcode products found."
-            onRowClick={(r) => { setError(null); setEditing(r); }}
             columns={[
               { key: "img", label: "", render: (r) => <ProductThumb src={r.image} alt={r.name} issue={r.imageIssue} sizes="36px" className="h-12 w-9" /> },
-              { key: "name", label: "Product", render: (r) => <><span className="font-medium">{r.name}</span>{(r.itemName || r.group) && <span className="block text-xs text-muted">{[r.itemName, r.group].filter(Boolean).join(" · ")}</span>}</> },
+              { key: "name", label: "Product", render: (r) => {
+                const primaryName = r.web?.itemName || r.web?.barcodeName || r.name;
+                const secondaryName = r.web?.itemName && r.web?.barcodeName ? r.web.barcodeName : null;
+                return <><span className="font-medium">{primaryName}</span>{secondaryName && <span className="block text-xs text-muted">{secondaryName}</span>}{r.group && <span className="block text-xs text-muted">{r.group}</span>}</>;
+              } },
               { key: "barcode", label: "Barcode", render: (r) => <><Barcode value={r.barcode} height={26} className="text-ink" />{r.barcodeLabelCount ? <span className="block text-[11px] text-amber-800">on {r.barcodeLabelCount} labels</span> : null}</> },
               { key: "code", label: "Item code", render: (r) => <>{r.itemCode && <span className="font-mono text-xs">{r.itemCode}</span>}{r.oldBarcode && <span className="block font-mono text-[11px] text-muted">old {r.oldBarcode}</span>}</> },
-              { key: "qty", label: "Qty", render: (r) => fmtQty(r) },
-              { key: "price", label: "Price", render: (r) => <>{r.price != null && formatINR(r.price)}{r.offerPrice != null && r.offerPrice !== r.price && <span className="block text-xs text-muted">offer {formatINR(r.offerPrice)}</span>}</> },
-              { key: "status", label: "Status", render: (r) => <>{r.status && <Badge tone={STATUS_TONE[r.status] ?? "muted"}>{statusLabel(r.status)}</Badge>}{r.business && <span className="mt-1 block text-[11px] text-muted">{r.business}</span>}</> },
-              { key: "web", label: "Web", render: (r) => r.web?.isFeatured ? <Badge tone="gold">featured</Badge> : null },
+              { key: "qty", label: "Qty", render: (r) => {
+                const qty = effectiveQty(r);
+                return qty == null ? null : `${qty.toLocaleString("en-IN", { maximumFractionDigits: 3 })}${r.uom ? ` ${r.uom}` : ""}`;
+              } },
+              { key: "price", label: "Price", render: (r) => {
+                const amount = effectivePrice(r);
+                return <>{amount != null && formatINR(amount)}{r.offerPrice != null && r.offerPrice !== amount && <span className="block text-xs text-muted">offer {formatINR(r.offerPrice)}</span>}</>;
+              } },
+              { key: "status", label: "Status", render: (r) => {
+                const value = effectiveStatus(r);
+                return <>{value && <Badge tone={STATUS_TONE[value] ?? "muted"}>{statusLabel(value)}</Badge>}{r.business && <span className="mt-1 block text-[11px] text-muted">{r.business}</span>}</>;
+              } },
+              { key: "edit", label: "Action", render: (r) => <Button size="sm" variant="outline" onClick={() => {
+                setError(null);
+                setEditing(r);
+                const values = {
+                  itemName: r.web?.itemName ?? "",
+                  barcodeName: r.web?.barcodeName ?? "",
+                  price: String(effectivePrice(r) ?? ""),
+                  quantity: String(effectiveQty(r) ?? ""),
+                  status: r.web?.barcodeStatusOverride ?? "",
+                };
+                setInitialEditValues(values);
+                setItemName(values.itemName);
+                setBarcodeName(values.barcodeName);
+                setPrice(values.price);
+                setQuantity(values.quantity);
+                setStatus(values.status);
+              }}>Edit</Button> },
             ]}
           />
           <Pager page={page} pages={meta?.pages ?? 1} onChange={setPage} />
         </div>
       )}
-      <Drawer open={!!editing} onClose={() => setEditing(null)} title="Barcode product" className="max-w-xl">
+      <Drawer open={!!editing} onClose={() => setEditing(null)} title="Edit product" className="max-w-xl">
         {editing && (
-          <div className="space-y-5 p-5">
+          <form className="space-y-5 p-5" onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
             <div className="flex gap-4">
               <ProductThumb src={editing.image} alt={editing.name} issue={editing.imageIssue} sizes="128px" className="h-40 w-28" />
               <div className="min-w-0">
-                <p className="font-medium">{editing.name}</p>
-                {editing.itemName && <p className="text-xs text-muted">{editing.itemName}</p>}
+                <p className="font-medium">{editing.web?.itemName || editing.web?.barcodeName || editing.name}</p>
+                <p className="text-xs text-muted">Barcode {editing.barcode}</p>
                 <Barcode value={editing.barcode} height={48} moduleWidth={2} className="mt-3 text-ink" />
               </div>
             </div>
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              {([
-                ["Item code", editing.itemCode],
-                ["Old barcode", editing.oldBarcode],
-                ["Print description", editing.printDescription],
-                ["Group", editing.group],
-                ["Business", editing.business],
-                ["Quantity", fmtQty(editing)],
-                ["Retail price", editing.price != null ? formatINR(editing.price) : undefined],
-                ["Offer price", editing.offerPrice != null ? formatINR(editing.offerPrice) : undefined],
-                ["HSN", editing.hsnCode],
-                ["GST", editing.gstPercent != null ? `${editing.gstPercent}%` : undefined],
-                ["Status", editing.status && statusLabel(editing.status)],
-                ["Batch type", editing.batchType],
-                ["GRC no.", editing.grcNo],
-                ["Created", fmtDate(editing.createdAt)],
-                ["Updated", fmtDate(editing.updatedAt)],
-              ] as [string, string | null | undefined][]).filter(([, v]) => v).map(([k, v]) => (
-                <div key={k}><dt className="text-[10px] uppercase tracking-[0.18em] text-muted">{k}</dt><dd>{v}</dd></div>
-              ))}
-            </dl>
-            <div>
-              <h3 className="mb-3 text-xs uppercase tracking-[0.18em] text-muted">Web settings</h3>
-              {editing.barcodeLabelCount ? (
-                <p className="mb-3 rounded-sm border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                  Barcode {editing.barcode} is on {editing.barcodeLabelCount} RetailERP labels. Web settings are stored per barcode, so they apply to all of them.
-                </p>
-              ) : null}
-              <SpecForm
-                key={editing.id}
-                mode="edit"
-                initial={{ slug: editing.web?.slug ?? editing.slug, seoTitle: editing.web?.seoTitle ?? "", seoDescription: editing.web?.seoDescription ?? "", isFeatured: editing.web?.isFeatured ?? false }}
-                fields={[
-                  { name: "slug", label: "URL slug", type: "text", full: true, hint: `/products/<slug>` },
-                  { name: "seoTitle", label: "SEO title", type: "text", full: true },
-                  { name: "seoDescription", label: "SEO description", type: "textarea" },
-                  { name: "isFeatured", label: "Featured", type: "boolean" },
-                ]}
-                onSubmit={(v) => save.mutate(v)}
-                busy={save.isPending}
-                error={error}
-              />
-            </div>
-          </div>
+            {editing.barcodeLabelCount ? (
+              <p className="rounded-sm border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                This barcode appears on {editing.barcodeLabelCount} ERP labels; website overrides apply to all matching labels. Barcode and item code remain unchanged.
+              </p>
+            ) : null}
+            <Field label="Item name">
+              <Input maxLength={160} value={itemName} onChange={(event) => setItemName(event.target.value)} />
+            </Field>
+            <Field label="Barcode name">
+              <Input maxLength={160} value={barcodeName} onChange={(event) => setBarcodeName(event.target.value)} />
+            </Field>
+            <Field label="Price (₹)">
+              <Input type="number" min="0" step="0.01" inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} />
+            </Field>
+            <Field label={`Quantity${editing.uom ? ` (${editing.uom})` : ""}`}>
+              <Input type="number" min="0" step="0.001" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} />
+            </Field>
+            <Field label="Status">
+              <Select value={status} onChange={(event) => setStatus(event.target.value)}>
+                <option value="">Use ERP status{editing.status ? ` (${statusLabel(editing.status)})` : ""}</option>
+                {["IN_STOCK", "IN_TRANSIT", "SOLD", "HISTORY", "VOID"].map((value) => (
+                  <option key={value} value={value}>{statusLabel(value)}</option>
+                ))}
+              </Select>
+            </Field>
+            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+            <Button type="submit" loading={save.isPending}>Save changes</Button>
+          </form>
         )}
       </Drawer>
     </div>

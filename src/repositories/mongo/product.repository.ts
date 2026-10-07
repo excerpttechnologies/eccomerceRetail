@@ -42,6 +42,12 @@ const FACET_LABELS: Record<FilterKey, string> = {
 const DISCOUNT_BUCKETS = [10, 20, 30, 40, 50];
 const MAX_LIMIT = 96;
 
+function searchVariants(query: string): string[] {
+  const value = query.trim();
+  const singular = value.replace(/ies$/i, "y").replace(/(?<!s)s$/i, "");
+  return Array.from(new Set([value, singular].filter(Boolean)));
+}
+
 /** Colour name -> swatch hex for the filter sidebar. Anything unknown falls back to a neutral. */
 const SWATCHES: Record<string, string> = {
   maroon: "#7B1E2B",
@@ -115,11 +121,24 @@ export class MongoProductRepository implements ProductRepository {
     if (params.ids?.length) and.push({ _id: { $in: params.ids.map(toObjectIdOrString) } });
     if (params.tags?.length) and.push({ [P.tags]: { $in: params.tags } });
     if (params.q?.trim()) {
-      const rx = new RegExp(escapeRegex(params.q.trim()), "i");
+      const patterns = searchVariants(params.q).map((value) => new RegExp(escapeRegex(value), "i"));
+      const searchableFields = [
+        P.name,
+        P.sku,
+        P.category,
+        P.subCategory,
+        P.fabric,
+        P.weave,
+        P.craft,
+        P.motif,
+        P.color,
+        P.tags,
+        P.description,
+      ];
       and.push({
-        $or: [P.name, P.sku, P.fabric, P.weave, P.craft, P.motif, P.color, P.tags, P.description].map((f) => ({
-          [f]: rx,
-        })),
+        $or: [
+          ...searchableFields.flatMap((field) => patterns.map((pattern) => ({ [field]: pattern }))),
+        ],
       });
     }
     return and.length === 1 ? and[0] : { $and: and };
@@ -155,14 +174,27 @@ export class MongoProductRepository implements ProductRepository {
     return products.map((p) => {
       const m = bySku.get(p.sku);
       if (!m) return p;
+      const sellingPrice = m.priceOverride ?? p.pricing.sellingPrice;
       return {
         ...p,
         slug: m.slug || p.slug,
         images: [...p.images, ...(m.extraImages ?? [])],
         tags: Array.from(new Set([...p.tags, ...(m.webTags ?? [])])),
+        pricing: m.priceOverride == null
+          ? p.pricing
+          : {
+              ...p.pricing,
+              sellingPrice,
+              discountPercent: p.pricing.mrp > sellingPrice
+                ? Math.round(((p.pricing.mrp - sellingPrice) / p.pricing.mrp) * 100)
+                : 0,
+            },
         web: {
           seoTitle: m.seoTitle ?? undefined,
           seoDescription: m.seoDescription ?? undefined,
+          cardTitle: m.cardTitle ?? undefined,
+          cardDescription: m.cardDescription ?? undefined,
+          priceOverride: m.priceOverride ?? undefined,
           isFeatured: m.isFeatured ?? false,
           salesCount: m.salesCount ?? 0,
         },

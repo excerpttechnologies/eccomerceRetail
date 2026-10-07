@@ -75,6 +75,7 @@ export function SpecForm({ fields, initial, onSubmit, submitLabel = "Save", busy
           );
           case "permissions": {
             const sel: string[] = Array.isArray(val) ? val : [];
+            const allSelected = sel.includes("*");
             const groups = Array.from(new Set(PERMISSIONS.map((p) => p.split(":")[0])));
             return wrap(
               <div className="grid gap-2 rounded-sm border border-line p-3 sm:grid-cols-2 md:grid-cols-3">
@@ -82,7 +83,7 @@ export function SpecForm({ fields, initial, onSubmit, submitLabel = "Save", busy
                   <div key={g}>
                     <p className="mb-1 text-[10px] uppercase tracking-widest text-gold">{g}</p>
                     {PERMISSIONS.filter((p) => p.startsWith(g + ":")).map((p) => (
-                      <label key={p} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={sel.includes(p)} onChange={(e) => upd(f.name, e.target.checked ? [...sel, p] : sel.filter((x) => x !== p))} className="accent-[var(--we-olive)]" />{p.split(":")[1]}</label>
+                      <label key={p} className="flex items-center gap-2 text-xs"><input type="checkbox" checked={allSelected || sel.includes(p)} onChange={(e) => upd(f.name, allSelected ? (e.target.checked ? [...PERMISSIONS] : PERMISSIONS.filter((permission) => permission !== p)) : (e.target.checked ? [...sel, p] : sel.filter((x) => x !== p)))} className="accent-[var(--we-olive)]" />{p.split(":")[1]}</label>
                     ))}
                   </div>
                 ))}

@@ -26,19 +26,13 @@ export function Gallery({ images, alt, badge }: { images: string[]; alt: string;
         }}
         onMouseLeave={() => setZoom(null)}
       >
-        {src && (
-          <Image
-            src={src}
-            alt={alt}
-            fill
-            priority
-            sizes="(min-width: 1024px) 45vw, 100vw"
-            className="object-cover transition-transform duration-200"
-            style={zoom ? { transform: "scale(1.8)", transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined}
-          />
-        )}
+        {src ? <Image src={src} alt={alt} fill priority sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover transition-transform duration-200" style={zoom ? { transform: "scale(1.8)", transformOrigin: `${zoom.x}% ${zoom.y}%` } : undefined} /> : <ComingSoonFallback />}
         {badge && <span className="absolute left-3 top-3 rounded-sm bg-olive px-2 py-0.5 text-[10px] uppercase tracking-widest text-ivory">{badge}</span>}
       </div>
     </div>
   );
+}
+
+function ComingSoonFallback() {
+  return <div className="absolute inset-0 flex items-center justify-center bg-ivory"><span className="border border-line px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-muted">Coming Soon</span></div>;
 }

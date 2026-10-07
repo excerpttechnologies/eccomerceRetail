@@ -4,6 +4,8 @@ import { parseBody } from "@/lib/api/body";
 import { fail, handler, ok } from "@/lib/api/response";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
+import { getWebConnection } from "@/lib/db";
+import { AdminUserModel } from "@/models/web/commerce.models";
 import { getCustomers, getOrders } from "@/repositories";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +26,13 @@ export const GET = handler(async (_req: NextRequest, ctx: Ctx) => {
   const order = await getOrders().getByOrderNo((await ctx.params).orderNo);
   if (!order) return fail("NOT_FOUND", "Order not found", 404);
   const customer = await getCustomers().getById(order.customerId);
-  return ok({ ...order, customer, allowedTransitions: FLOW[order.orderStatus] ?? [] });
+  const actorEmails = [...new Set((order.statusHistory ?? []).map((entry) => entry.by?.trim().toLowerCase()).filter((email): email is string => !!email && email.includes("@")))];
+  const staffLinks: Record<string, string> = {};
+  if (actorEmails.length) {
+    const staff = await AdminUserModel(await getWebConnection()).find({ email: { $in: actorEmails }, profile: { $exists: true } }, { _id: 1, email: 1 }).lean();
+    for (const person of staff) staffLinks[person.email] = String(person._id);
+  }
+  return ok({ ...order, customer, staffLinks, allowedTransitions: FLOW[order.orderStatus] ?? [] });
 });
 
 /** PATCH { status?, note?, awbNo? } — enforces the fulfilment workflow. */

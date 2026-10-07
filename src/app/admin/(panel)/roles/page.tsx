@@ -9,7 +9,7 @@ export default function RolesPage() {
     <ResourcePage<Role>
       resource="roles"
       title="Roles & permissions"
-      subtitle="System roles (admin/manager/staff) can be edited but not deleted or renamed."
+      canDeleteItem={(role) => role.slug !== "admin"}
       columns={[
         { key: "name", label: "Role", render: (r) => <span className="font-medium">{r.name}{r.isSystem && <Badge tone="muted" className="ml-2">system</Badge>}</span> },
         { key: "slug", label: "Slug", className: "font-mono text-xs" },

@@ -69,7 +69,7 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
                 </select>
               </label>
               <Link href="/stores" className="hover:text-olive">Store locator</Link>
-              <Link href="/account/orders" className="hover:text-olive">Track order</Link>
+              <Link href="/track-order" className="hover:text-olive">Track order</Link>
             </div>
           </div>
         </div>
@@ -133,6 +133,7 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
             <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4 text-sm text-muted">
               <Link href="/account">My account</Link>
               <Link href="/stores">Store locator</Link>
+              <Link href="/track-order">Track order</Link>
               <label className="flex items-center justify-between">Currency
                 <select value={ui.currency} onChange={(e) => ui.setCurrency(e.target.value)} className="bg-transparent text-olive">
                   {currencies.filter((c) => CURRENCIES[c]).map((c) => <option key={c} value={c}>{c}</option>)}

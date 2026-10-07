@@ -23,6 +23,11 @@ ERP_DB_NAME=grooretailerp1
 > for the verified field names, relationships and image rules. The storefront still follows
 > `DATA_SOURCE` and the placeholder `PRODUCT_FIELDS` below.
 
+The homepage's Sarees/Fabrics 8A and 9A image rails also read from `barcodeLabel`,
+matching barcode prefixes and ERP product groups. This keeps those photos available
+even when the generic `products` collection is empty or `DATA_SOURCE=mock`; only
+loadable ERP images are shown.
+
 ## 1. Discover the real field names
 
 The sandbox this project was scaffolded in could not reach Atlas, so every field in

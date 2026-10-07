@@ -14,7 +14,7 @@ export const POST = handler(async (req: NextRequest) => {
     z.object({
       type: z.enum(["contact", "support", "product", "whatsapp", "newsletter"]).default("contact"),
       name: z.string().max(100).optional(),
-      mobile: z.string().max(20).optional(),
+      mobile: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit mobile").optional(),
       email: z.string().email().optional(),
       message: z.string().max(2000).optional(),
       sku: z.string().max(60).optional(),

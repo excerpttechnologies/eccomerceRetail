@@ -11,7 +11,7 @@ export async function Header() {
       stores={stores.map((s) => ({ id: s.id, name: s.name, city: s.city }))}
       currencies={settings.supportedCurrencies ?? ["INR"]}
       tagline={settings.tagline ?? ""}
-      logo={<Logo settings={settings} height={48} />}
+      logo={<Logo settings={settings} height={48} className="inline-block origin-left scale-[1.3] lg:scale-[1.6]" />}
       whatsapp={settings.whatsappNumber ?? ""}
     />
   );

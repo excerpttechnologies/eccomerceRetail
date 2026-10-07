@@ -41,7 +41,9 @@ export const PATCH = handler(async (req: NextRequest, ctx: Ctx) => {
   const M = def.model(await getWebConnection());
   const before = await M.findById(id).lean();
   if (!before) return fail("NOT_FOUND", "Not found", 404);
-  if (resource === "roles" && (before as any).isSystem && data.slug && data.slug !== (before as any).slug) return fail("FORBIDDEN", "System roles cannot be renamed", 403);
+  const isAdministrator = actor.role === "admin" || actor.permissions.includes("*");
+  if (resource === "roles" && (before as any).isSystem && !isAdministrator) return fail("FORBIDDEN", "Only an administrator can manage system roles", 403);
+  if (resource === "roles" && (before as any).slug === "admin" && data.slug && data.slug !== "admin") return fail("FORBIDDEN", "The Administrator role slug cannot be changed", 403);
   const after = await M.findByIdAndUpdate(id, { $set: data }, { new: true, runValidators: true }).lean();
   await audit(actor, `${resource}.update`, resource, id, hide(before, def.hidden), hide(after, def.hidden), req);
   return ok(hide(after, def.hidden));
@@ -55,7 +57,9 @@ export const DELETE = handler(async (req: NextRequest, ctx: Ctx) => {
   const M = def.model(await getWebConnection());
   const before = await M.findById(id).lean();
   if (!before) return fail("NOT_FOUND", "Not found", 404);
-  if (resource === "roles" && (before as any).isSystem) return fail("FORBIDDEN", "System roles cannot be deleted", 403);
+  const isAdministrator = actor.role === "admin" || actor.permissions.includes("*");
+  if (resource === "roles" && (before as any).isSystem && !isAdministrator) return fail("FORBIDDEN", "Only an administrator can manage system roles", 403);
+  if (resource === "roles" && (before as any).slug === "admin") return fail("FORBIDDEN", "The Administrator role cannot be deleted", 403);
   if (resource === "users" && String(id) === actor.sub) return fail("FORBIDDEN", "You cannot delete your own account", 403);
   await M.deleteOne({ _id: id });
   if (resource === "menu") await M.deleteMany({ parentId: id }); // cascade children
