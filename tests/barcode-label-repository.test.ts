@@ -30,4 +30,17 @@ describe("barcode label series", () => {
       ],
     });
   });
+
+  it("matches any selected ERP group or business for storefront clothing catalogues", async () => {
+    const repository = new MongoBarcodeLabelRepository(async () => ({} as never));
+
+    await repository.list({ groupIds: ["sarees-group", "fabric-group"], businessIds: ["textiles-business"], limit: 96 });
+
+    expect(aggregate.mock.calls[0][0][0].$match).toEqual({
+      $or: [
+        { groupId: { $in: ["sarees-group", "fabric-group"] } },
+        { businessId: { $in: ["textiles-business"] } },
+      ],
+    });
+  });
 });

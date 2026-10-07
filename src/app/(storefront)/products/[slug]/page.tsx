@@ -13,10 +13,20 @@ import { ProductRail } from "@/components/product/product-rail";
 import { Reviews } from "@/components/product/reviews";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { slugify } from "@/lib/utils";
+import Link from "next/link";
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+type ProductPageProps = {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ comingSoon?: string; name?: string }>;
+};
+
+export async function generateMetadata({ params, searchParams }: ProductPageProps): Promise<Metadata> {
   const p = await getMasterData().products.getBySlug((await params).slug);
-  if (!p) return {};
+  if (!p) {
+    const query = await searchParams;
+    if (query.comingSoon === "1" && query.name) return { title: `${query.name} — Coming Soon` };
+    return {};
+  }
   return {
     title: p.web?.seoTitle ?? p.name,
     description: p.web?.seoDescription ?? p.description.slice(0, 160),
@@ -25,10 +35,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({ params, searchParams }: ProductPageProps) {
   const master = getMasterData();
   const product = await master.products.getBySlug((await params).slug);
-  if (!product) notFound();
+  if (!product) {
+    const query = await searchParams;
+    if (query.comingSoon !== "1" || !query.name) notFound();
+    return (
+      <div className="mx-auto max-w-site px-4 py-16 sm:px-6">
+        <div className="mx-auto max-w-2xl rounded-sm border border-dashed border-line px-6 py-16 text-center">
+          <p className="text-xs uppercase tracking-[0.2em] text-olive">Coming Soon</p>
+          <h1 className="mt-3 text-3xl">{query.name}</h1>
+          <p className="mt-3 text-sm text-muted">We’re preparing this product for you. Please check back soon.</p>
+          <Link href="/collections/sarees" className="mt-6 inline-flex h-10 items-center border border-line px-5 text-xs uppercase tracking-widest hover:border-olive">
+            Browse sarees
+          </Link>
+        </div>
+      </div>
+    );
+  }
   const [settings, related, category] = await Promise.all([
     getSettings(),
     master.products.related(product, 8),

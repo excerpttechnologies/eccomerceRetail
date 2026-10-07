@@ -45,5 +45,11 @@ const schema = z
     NVIDIA_BASE_URL: blankToUndefined(e.NVIDIA_BASE_URL)?.replace(/\/+$/, "") ?? "https://integrate.api.nvidia.com/v1",
   }));
 
-export const env = schema.parse(process.env);
+const rawEnv = {
+  ...process.env,
+  MONGODB_URI: process.env.MONGODB_URI ?? process.env.MONGO_URI,
+  ERP_MONGODB_URI: process.env.ERP_MONGODB_URI ?? process.env.ERP_MONGO_URI,
+};
+
+export const env = schema.parse(rawEnv);
 export type Env = typeof env;

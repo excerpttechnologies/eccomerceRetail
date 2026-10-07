@@ -17,6 +17,7 @@ import {
   type TestimonialDoc,
 } from "@/models/web/content.models";
 import { FILTER_KEYS, type FilterKey, type ProductListParams } from "@/domain/types";
+import { DEFAULT_MENU } from "@/lib/default-menu";
 
 export interface MenuNode {
   id: string;
@@ -50,6 +51,7 @@ export class SiteRepository {
   async menu(): Promise<MenuNode[]> {
     const M = MenuItemModel(await this.conn());
     const items = (await M.find({ isActive: true }).sort({ sortOrder: 1 }).lean()) as MenuItemDoc[];
+    if (!items.length) return DEFAULT_MENU;
     const nodes = new Map<string, MenuNode>();
     for (const it of items) {
       nodes.set(String(it._id), {
@@ -69,7 +71,7 @@ export class SiteRepository {
       if (parent) parent.children.push(node);
       else roots.push(node);
     }
-    return roots;
+    return roots.length ? roots : DEFAULT_MENU;
   }
 
   async banners(placement: BannerDoc["placement"]): Promise<BannerDoc[]> {

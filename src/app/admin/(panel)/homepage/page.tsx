@@ -10,7 +10,6 @@ export default function HomepagePage() {
     <ResourcePage<S>
       resource="homepage"
       title="Homepage builder"
-      subtitle={'Order, show/hide and retitle the sections rendered on the home page. Use key "collection" with config {"slug":"…"} to feature a collection rail.'}
       sort="sortOrder:1"
       columns={[
         { key: "sortOrder", label: "#", className: "w-12" },

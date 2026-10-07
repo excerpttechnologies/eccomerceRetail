@@ -28,7 +28,7 @@ export async function syncWebMeta() {
     let n = 2;
     while (usedSlugs.has(slug)) slug = `${productSlug(name, sku)}-${n++}`;
     usedSlugs.add(slug);
-    batch.push({ sku, slug });
+    batch.push({ sku, slug, itemCode: `web:${sku}` });
     if (batch.length >= 500) {
       await Meta.insertMany(batch.splice(0), { ordered: false });
     }

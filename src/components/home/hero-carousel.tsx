@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { buttonClass } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ComingSoonImage } from "@/components/ui/coming-soon-image";
 
 export interface HeroSlide {
   id: string;
@@ -31,7 +32,7 @@ export function HeroCarousel({ slides, interval = 6000 }: { slides: HeroSlide[];
         <div key={s.id} className={cn("absolute inset-0 transition-opacity duration-1000", idx === i ? "opacity-100" : "opacity-0")} aria-hidden={idx !== i}>
           <picture>
             {s.mobile && <source media="(max-width: 640px)" srcSet={s.mobile} />}
-            <Image src={s.desktop} alt={s.alt ?? s.title ?? ""} fill priority={idx === 0} sizes="100vw" className="object-cover" />
+            {s.desktop ? <Image src={s.desktop} alt={s.alt ?? s.title ?? ""} fill priority={idx === 0} sizes="100vw" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}
           </picture>
           <div className="absolute inset-0 bg-gradient-to-t from-ink/60 via-ink/10 to-transparent sm:bg-gradient-to-r sm:from-ink/50 sm:via-ink/10" />
           <div className={cn("absolute inset-0 mx-auto flex max-w-site flex-col justify-end px-6 pb-14 text-ivory sm:justify-center sm:pb-0", s.align === "center" && "items-center text-center", s.align === "right" && "items-end text-right")}>

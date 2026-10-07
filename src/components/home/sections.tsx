@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Award, Truck, ShieldCheck, RotateCcw, Star, Mail, MessageCircle, Phone, CircleHelp } from "lucide-react";
-import type { CategoryNode, ProductCard } from "@/domain/types";
-import type { BannerDoc, CollectionDoc, TestimonialDoc } from "@/models/web/content.models";
+import type { BarcodeProduct, CategoryNode, ProductCard } from "@/domain/types";
+import type { BannerDoc, TestimonialDoc } from "@/models/web/content.models";
 import type { SiteSettings } from "@/repositories/web/site.repository";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ProductRail } from "@/components/product/product-rail";
@@ -58,16 +58,20 @@ export function CategoryTiles({ categories, title, subtitle }: { categories: Cat
   );
 }
 
-export function FeaturedCollections({ collections, title, subtitle }: { collections: CollectionDoc[]; title?: string | null; subtitle?: string | null }) {
+export function FeaturedCollections({ collections, title, subtitle }: {
+  collections: { id: string; slug: string; name: string; description?: string | null; image?: string | null }[];
+  title?: string | null;
+  subtitle?: string | null;
+}) {
   if (!collections.length) return null;
   return (
     <Wrap className="py-14">
       <SectionHeading title={title ?? "Curated collections"} subtitle={subtitle ?? undefined} href="/collections" />
       <div className="grid gap-4 md:grid-cols-2">
         {collections.map((c) => (
-          <Link key={String(c._id)} href={`/collections/${c.slug}`} className="group relative block overflow-hidden rounded-sm bg-line">
+          <Link key={c.id} href={`/collections/${c.slug}`} className="group relative block overflow-hidden rounded-sm bg-line">
             <div className="relative aspect-[16/7]">
-              {c.banner?.desktop && <Image src={c.banner.desktop} alt={c.name} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />}
+              {c.image && <Image src={c.image} alt={c.name} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />}
             </div>
             <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-ink/70 via-ink/10 to-transparent p-5 text-ivory">
               <p className="font-heading text-3xl">{c.name}</p>
@@ -91,6 +95,56 @@ export function ProductSection({ title, subtitle, href, items }: { title?: strin
   );
 }
 
+export function ErpImageGallery({ title, items }: { title: string; items: BarcodeProduct[] }) {
+  if (!items.length) return null;
+  return (
+    <Wrap className="py-10">
+      <SectionHeading title={title} align="center" />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {items.map((item) => (
+          <article key={item.id} className="overflow-hidden rounded-sm border border-line bg-white">
+            <div className="relative aspect-[3/4] bg-line">
+              {item.image && (
+                <Image
+                  src={item.image}
+                  alt={item.itemName || item.name}
+                  fill
+                  unoptimized
+                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+                  className="object-cover"
+                />
+              )}
+            </div>
+            <div className="space-y-1 p-3">
+              <h3 className="text-sm font-medium text-ink">{item.itemName || item.name}</h3>
+              <p className="text-xs text-muted">{getErpProductDescription(item)}</p>
+            </div>
+          </article>
+        ))}
+      </div>
+    </Wrap>
+  );
+}
+
+function getErpProductDescription(item: BarcodeProduct): string {
+  const identifiers = new Set(
+    [item.barcode, item.itemCode, item.oldBarcode]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => value.trim().toLowerCase()),
+  );
+  const description = [item.printDescription, item.name, item.itemName]
+    .map((value) => value?.trim())
+    .find((value) => Boolean(
+      value &&
+      value.length >= 3 &&
+      !identifiers.has(value.toLowerCase()) &&
+      !/^[A-Z0-9_-]+$/.test(value),
+    ));
+
+  if (!description) return `Product details not listed in ERP`;
+  return description.charAt(0).toUpperCase() + description.slice(1);
+}
+
 export function ChipStrip({ title, subtitle, items }: { title?: string | null; subtitle?: string | null; items: { label: string; href: string; image?: string }[] }) {
   if (!items.length) return null;
   return (
@@ -99,7 +153,7 @@ export function ChipStrip({ title, subtitle, items }: { title?: string | null; s
       <div className="flex flex-wrap justify-center gap-3">
         {items.map((it) => (
           <Link key={it.href} href={it.href} className="group flex items-center gap-3 rounded-full border border-line bg-white/60 py-2 pl-2 pr-5 text-sm text-olive transition-colors hover:border-gold hover:bg-gold/5">
-            <span className="relative h-9 w-9 overflow-hidden rounded-full bg-line">{it.image && <Image src={it.image} alt="" fill sizes="36px" className="object-cover" />}</span>
+            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full">{it.image && <Image src={it.image} alt="" fill sizes="36px" className="object-cover" />}</span>
             {it.label}
           </Link>
         ))}

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CURRENCIES } from "@/lib/currency";
 import { cn } from "@/lib/utils";
+import { DEFAULT_MENU } from "@/lib/default-menu";
 import type { MenuNode } from "@/repositories/web/site.repository";
 import { useCart, useWishlist } from "@/hooks/useCart";
 import { useUi } from "@/store/ui";
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props) {
+  const navItems = menu.length ? menu : DEFAULT_MENU;
   const { cart } = useCart();
   const { skus } = useWishlist();
   const ui = useUi();
@@ -83,7 +85,7 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
 
           <nav className="hidden flex-1 justify-center lg:flex" onMouseLeave={() => setActive(null)}>
             <ul className="flex items-center gap-8">
-              {menu.map((item) => (
+              {navItems.map((item) => (
                 <li key={item.id} onMouseEnter={() => setActive(item.children.length ? item.id : null)}>
                   <Link
                     href={item.href ?? "#"}
@@ -96,7 +98,7 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
                 </li>
               ))}
             </ul>
-            {menu.map((item) => item.children.length > 0 && <MegaMenu key={item.id} item={item} open={active === item.id} />)}
+            {navItems.map((item) => item.children.length > 0 && <MegaMenu key={item.id} item={item} open={active === item.id} />)}
           </nav>
 
           <div className="flex items-center gap-1">
@@ -127,7 +129,7 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
             <button onClick={() => ui.setMenuOpen(false)} aria-label="Close"><X className="h-5 w-5" /></button>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-2">
-            {menu.map((item) => (
+            {navItems.map((item) => (
               <MobileItem key={item.id} item={item} />
             ))}
             <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4 text-sm text-muted">
