@@ -26,7 +26,9 @@ ERP_DB_NAME=grooretailerp1
 The homepage's Sarees/Fabrics 8A and 9A image rails also read from `barcodeLabel`,
 matching barcode prefixes and ERP product groups. This keeps those photos available
 even when the generic `products` collection is empty or `DATA_SOURCE=mock`; only
-loadable ERP images are shown.
+loadable ERP images are shown. Clicking the Sarees or Fabrics navigation opens a
+paginated catalogue of loadable ERP images filtered by the matching ERP group/business;
+the homepage image rails remain unchanged.
 
 ## 1. Discover the real field names
 

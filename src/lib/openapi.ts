@@ -40,6 +40,7 @@ export function buildOpenApi(baseUrl: string) {
       "/health": { get: { tags: ["System"], summary: "Liveness + DB status", responses: ok({ type: "object" }) } },
       "/erp/status": { get: { tags: ["System"], summary: "Which data source is active and whether it responds", responses: ok({ type: "object" }) } },
       "/products": { get: { tags: ["Catalogue"], summary: "List / search products", parameters: listQuery, responses: ok(list(productCard)) } },
+      "/products/erp-images": { get: { tags: ["Catalogue"], summary: "Homepage ERP image series from admin product records", parameters: [q("group", "ERP product group", { type: "string", enum: ["sarees", "fabrics"] }, true)], responses: { ...ok(list({ type: "object", properties: { title: { type: "string" }, items: list({ type: "object", properties: { barcode: { type: "string" }, name: { type: "string" }, image: { type: "string", format: "uri" } } }) } })), 503: { description: "RetailERP unreachable", content: { "application/json": { schema: error } } } } } },
       "/products/facets": { get: { tags: ["Catalogue"], summary: "Facet counts for the same filters", parameters: listQuery, responses: ok({ $ref: "#/components/schemas/Facets" }) } },
       "/products/{slug}": { get: { tags: ["Catalogue"], summary: "Product detail (+related)", parameters: [pathParam("slug")], responses: { ...ok({ $ref: "#/components/schemas/Product" }), 404: { description: "Not found" } } } },
       "/categories": { get: { tags: ["Catalogue"], summary: "Category tree", responses: ok({ type: "array" }) } },
