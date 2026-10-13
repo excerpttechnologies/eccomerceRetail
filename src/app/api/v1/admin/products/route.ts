@@ -50,6 +50,13 @@ export const GET = handler(async (req: NextRequest) => {
         barcodeStatusOverride: m.barcodeStatusOverride,
         itemName: m.itemName,
         barcodeName: m.barcodeName,
+        productType: m.productType,
+        itemType: m.itemType,
+        groupNameOverride: m.groupNameOverride,
+        supplierCodeOverride: m.supplierCodeOverride,
+        supplierNameOverride: m.supplierNameOverride,
+        printDescriptionOverride: m.printDescriptionOverride,
+        ecommOffPercent: m.ecommOffPercent,
         isFeatured: m.isFeatured,
         salesCount: m.salesCount,
       });
@@ -75,14 +82,21 @@ export const PATCH = handler(async (req: NextRequest) => {
     seoDescription: z.string().max(240).optional(),
     itemName: z.string().trim().max(160).nullable().optional(),
     barcodeName: z.string().trim().max(160).nullable().optional(),
+    productType: z.enum(["SAREES", "FABRICS", "PLAIN FABRICS", "DUPATTA", "NEW ARRIVALS"]).nullable().optional(),
+    itemType: z.enum(["By Weave", "By Fabric", "By Craft", "By Occasion"]).nullable().optional(),
+    groupNameOverride: z.string().trim().max(160).nullable().optional(),
+    supplierCodeOverride: z.string().trim().max(120).nullable().optional(),
+    supplierNameOverride: z.string().trim().max(160).nullable().optional(),
+    printDescriptionOverride: z.string().trim().max(1000).nullable().optional(),
+    ecommOffPercent: z.number().finite().min(0).max(100).nullable().optional(),
     barcodePriceOverride: z.number().finite().min(0).max(100_000_000).nullable().optional(),
     barcodeQtyOverride: z.number().finite().min(0).max(1_000_000).nullable().optional(),
     barcodeStatusOverride: z.enum(["IN_STOCK", "IN_TRANSIT", "SOLD", "HISTORY", "VOID"]).nullable().optional(),
     isFeatured: z.boolean().optional(),
     extraImages: z.array(z.string()).optional(),
     webTags: z.array(z.string()).optional(),
-  }).refine(({ slug, seoTitle, seoDescription, itemName, barcodeName, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags }) =>
-    [slug, seoTitle, seoDescription, itemName, barcodeName, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags].some((value) => value !== undefined)));
+  }).refine(({ slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags }) =>
+    [slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags].some((value) => value !== undefined)));
   if (!b.ok) return b.res;
   const { sku, ...patch } = b.data;
   let product;
@@ -97,7 +111,7 @@ export const PATCH = handler(async (req: NextRequest) => {
   const before = await M.findOne({ sku }).lean();
   const set: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
-  for (const key of ["itemName", "barcodeName", "barcodePriceOverride", "barcodeQtyOverride", "barcodeStatusOverride"] as const) {
+  for (const key of ["itemName", "barcodeName", "productType", "itemType", "groupNameOverride", "supplierCodeOverride", "supplierNameOverride", "printDescriptionOverride", "ecommOffPercent", "barcodePriceOverride", "barcodeQtyOverride", "barcodeStatusOverride"] as const) {
     const value = patch[key];
     if (value === undefined) continue;
     if (value !== null && value !== "") set[key] = value;

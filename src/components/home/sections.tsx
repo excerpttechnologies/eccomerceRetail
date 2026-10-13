@@ -4,6 +4,7 @@ import { Award, Truck, ShieldCheck, RotateCcw, Star, Mail, MessageCircle, Phone,
 import type { BarcodeProduct, CategoryNode, ProductCard } from "@/domain/types";
 import type { BannerDoc, TestimonialDoc } from "@/models/web/content.models";
 import type { SiteSettings } from "@/repositories/web/site.repository";
+import { Logo } from "@/components/Logo";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ProductRail } from "@/components/product/product-rail";
 import { ContactForm } from "@/components/account/contact-form";
@@ -67,11 +68,11 @@ export function FeaturedCollections({ collections, title, subtitle }: {
   return (
     <Wrap className="py-14">
       <SectionHeading title={title ?? "Curated collections"} subtitle={subtitle ?? undefined} href="/collections" />
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
         {collections.map((c) => (
           <Link key={c.id} href={`/collections/${c.slug}`} className="group relative block overflow-hidden rounded-sm bg-line">
-            <div className="relative aspect-[16/7]">
-              {c.image && <Image src={c.image} alt={c.name} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />}
+            <div className="relative aspect-[3/4]">
+              {c.image && <Image src={c.image} alt={c.name} fill sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw" className="object-cover object-top transition-transform duration-700 group-hover:scale-105" />}
             </div>
             <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-ink/70 via-ink/10 to-transparent p-5 text-ivory">
               <p className="font-heading text-3xl">{c.name}</p>
@@ -230,24 +231,27 @@ export function Newsletter({ title, subtitle }: { title?: string | null; subtitl
   );
 }
 
-export function SupportPanel({ title, subtitle, contact, whatsappNumber }: { title?: string | null; subtitle?: string | null; contact?: SiteSettings["contact"]; whatsappNumber?: string | null }) {
+export function SupportPanel({ title, subtitle, contact, settings, whatsappNumber }: { title?: string | null; subtitle?: string | null; contact?: SiteSettings["contact"]; settings?: Pick<SiteSettings, "storeName" | "legalName">; whatsappNumber?: string | null }) {
+  const contactEmail = contact?.email || "hello@wovenessence.in";
+  const contactHours = contact?.hours || "Mon–Sat, 10:30 am – 8:30 pm";
   const contactLinks = [
     contact?.phone ? { href: `tel:${contact.phone}`, label: contact.phone, Icon: Phone } : null,
-    contact?.email ? { href: `mailto:${contact.email}`, label: contact.email, Icon: Mail } : null,
+    { href: `mailto:${contactEmail}`, label: contactEmail, Icon: Mail },
     whatsappNumber ? { href: `https://wa.me/${whatsappNumber}`, label: "Chat on WhatsApp", Icon: MessageCircle } : null,
   ].filter((item): item is NonNullable<typeof item> => item !== null);
 
   return (
-    <section id="support" className="bg-olive text-ivory">
+    <section id="support" className="bg-ivory text-ink">
       <Wrap className="grid gap-8 py-14 md:grid-cols-[0.9fr_1.1fr] md:items-center md:gap-12">
         <div>
+          {settings && <Logo settings={settings} height={44} className="mb-6 inline-block" />}
           <p className="text-[11px] uppercase tracking-[0.2em] text-gold">Here to help</p>
-          <h2 className="mt-3 font-heading text-4xl text-ivory">{title ?? "How can we help?"}</h2>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-ivory/80">{subtitle ?? "Questions about a saree, an order, or something not working? Send us a note and our team will get back to you."}</p>
-          {contact?.hours && <p className="mt-5 text-xs text-ivory/65">{contact.hours}</p>}
+          <h2 className="mt-3 font-heading text-4xl text-olive">{title ?? "How can we help?"}</h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-muted">{subtitle ?? "Questions about a saree, an order, or something not working? Send us a note and our team will get back to you."}</p>
+          <p className="mt-5 text-xs text-muted">{contactHours}</p>
           {contactLinks.length > 0 && (
             <div className="mt-5 flex flex-col items-start gap-3">
-              {contactLinks.map(({ href, label, Icon }) => <a key={href} href={href} target={href.startsWith("https:") ? "_blank" : undefined} rel={href.startsWith("https:") ? "noreferrer" : undefined} className="inline-flex items-center gap-2 text-sm text-ivory/90 hover:text-gold"><Icon className="h-4 w-4" />{label}</a>)}
+              {contactLinks.map(({ href, label, Icon }) => <a key={href} href={href} target={href.startsWith("https:") ? "_blank" : undefined} rel={href.startsWith("https:") ? "noreferrer" : undefined} className="inline-flex items-center gap-2 text-sm text-olive hover:text-maroon"><Icon className="h-4 w-4" />{label}</a>)}
             </div>
           )}
         </div>

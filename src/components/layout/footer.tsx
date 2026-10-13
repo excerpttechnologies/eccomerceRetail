@@ -4,8 +4,26 @@ import { Logo } from "@/components/Logo";
 import { getCategoryTree, getFooterPages, getSettings } from "@/lib/site-data";
 import { NewsletterForm } from "@/components/home/newsletter-form";
 
+const DEFAULT_ADDRESS = "1ST FLOOR 4T, BLOCK 34, 27th Cross, 4th T Block East, 4th Block, Jayanagar, Bengaluru, Karnataka 560011";
+const DEFAULT_PHONE = "099163 11500";
+const DEFAULT_EMAIL = "hello@wovenessence.in";
+const DEFAULT_HOURS = "Mon–Sat, 10:30 am – 8:30 pm";
+const DEFAULT_INSTAGRAM = "https://www.instagram.com/templefabrics?vrfl=eXoyOXo5MzQyamNu";
+
 export async function Footer() {
   const [settings, pages, categories] = await Promise.all([getSettings(), getFooterPages().catch(() => []), getCategoryTree().catch(() => [])]);
+  const address = settings.contact?.address === "Temple Fabrics, 12 Commercial Street, Shivaji Nagar, Bengaluru 560001"
+    || settings.contact?.address === "1st & 2nd Floor, SRS Complex, 2611, 27th Main Rd, above Kushal's, 1st Sector, HSR Layout, Bengaluru, Karnataka 560102"
+    ? DEFAULT_ADDRESS
+    : settings.contact?.address || DEFAULT_ADDRESS;
+  const phone = settings.contact?.phone === "+91 80 4000 0000"
+    ? DEFAULT_PHONE
+    : settings.contact?.phone || DEFAULT_PHONE;
+  const email = settings.contact?.email || DEFAULT_EMAIL;
+  const hours = settings.contact?.hours || DEFAULT_HOURS;
+  const instagram = settings.social?.instagram === "https://instagram.com/wovenessence"
+    ? DEFAULT_INSTAGRAM
+    : settings.social?.instagram || DEFAULT_INSTAGRAM;
   const policies = pages.filter((p) => p.type === "policy");
   const info = pages.filter((p) => p.type === "page" || p.type === "faq");
   return (
@@ -14,14 +32,14 @@ export async function Footer() {
         <div className="md:col-span-4">
           <Logo settings={settings} height={44} />
           <p className="mt-4 max-w-xs text-sm text-muted">{settings.seo?.defaultDescription ?? "Handloom sarees and fabrics from Temple Fabrics, Bengaluru — woven with tradition, delivered anywhere."}</p>
-          <div className="mt-5 space-y-1 text-sm text-muted">
-            {settings.contact?.address && <p>{settings.contact.address}</p>}
-            {settings.contact?.phone && <p><a href={`tel:${settings.contact.phone}`} className="hover:text-olive">{settings.contact.phone}</a></p>}
-            {settings.contact?.email && <p><a href={`mailto:${settings.contact.email}`} className="hover:text-olive">{settings.contact.email}</a></p>}
-            {settings.contact?.hours && <p>{settings.contact.hours}</p>}
-          </div>
-          <div className="mt-5 flex gap-3 text-olive">
-            {settings.social?.instagram && <a href={settings.social.instagram} aria-label="Instagram" target="_blank" rel="noreferrer"><Instagram className="h-5 w-5" /></a>}
+          <address className="mt-5 space-y-1 text-sm not-italic text-muted">
+            <p>{address}</p>
+            <p><a href="tel:+919916311500" className="hover:text-olive">{phone}</a></p>
+            <p><a href={`mailto:${email}`} className="hover:text-olive">{email}</a></p>
+            <p>{hours}</p>
+          </address>
+          <div className="mt-5 flex gap-3 text-sm text-olive">
+            {instagram && <a href={instagram} aria-label="Instagram @templefabrics" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 hover:text-maroon"><Instagram className="h-5 w-5" />@templefabrics</a>}
             {settings.social?.facebook && <a href={settings.social.facebook} aria-label="Facebook" target="_blank" rel="noreferrer"><Facebook className="h-5 w-5" /></a>}
             {settings.social?.youtube && <a href={settings.social.youtube} aria-label="YouTube" target="_blank" rel="noreferrer"><Youtube className="h-5 w-5" /></a>}
           </div>

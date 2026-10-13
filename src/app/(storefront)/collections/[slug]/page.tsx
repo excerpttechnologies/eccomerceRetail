@@ -7,10 +7,11 @@ import { parseProductListParams } from "@/lib/api/query";
 import { getMasterData, getSite } from "@/repositories";
 import { collectionToListParams } from "@/repositories/web/site.repository";
 import { Listing } from "@/components/listing/listing";
+import { BarcodeCollectionFilters } from "@/components/listing/barcode-collection-filters";
+import { BarcodeProductGrid } from "@/components/product/barcode-product-grid";
 import { Pagination } from "@/components/listing/toolbar";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { ErpImageGallery } from "@/components/home/sections";
-import { getBarcodeImageCatalog, getBarcodeImageSeries, type BarcodeSeriesGroup } from "@/lib/barcode-image-series";
+import { getBarcodeImageCatalog, getBarcodeImageFilterOptions, getBarcodeImageSeries, type BarcodeSeriesGroup } from "@/lib/barcode-image-series";
 
 type SP = Record<string, string | string[] | undefined>;
 const toSearchParams = (sp: SP) => {
@@ -18,6 +19,7 @@ const toSearchParams = (sp: SP) => {
   for (const [k, v] of Object.entries(sp)) (Array.isArray(v) ? v : v ? [v] : []).forEach((x) => u.append(k, x));
   return u;
 };
+const firstParam = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
 function erpGroupForSlug(slug: string): BarcodeSeriesGroup | null {
   if (slug === "sarees") return "sarees";
@@ -59,21 +61,17 @@ export default async function CollectionPage({ params, searchParams }: { params:
     const rawPage = Array.isArray(sp.page) ? sp.page[0] : sp.page;
     const parsedPage = rawPage && /^\d+$/.test(rawPage) ? Number(rawPage) : 1;
     const page = Number.isSafeInteger(parsedPage) ? Math.max(1, parsedPage) : 1;
-    const [result, featuredSeries] = await Promise.all([
-      getBarcodeImageCatalog(erpGroup, page),
-      page === 1 ? getBarcodeImageSeries(erpGroup) : Promise.resolve([]),
+    const filters = {
+      group: firstParam(sp.group),
+      business: firstParam(sp.business),
+      status: firstParam(sp.status),
+      uomType: firstParam(sp.uomType),
+      q: firstParam(sp.q),
+    };
+    const [result, facets] = await Promise.all([
+      getBarcodeImageCatalog(erpGroup, page, filters),
+      getBarcodeImageFilterOptions(erpGroup),
     ]);
-    const featuredItems = featuredSeries.flatMap((series) => series.items);
-    const images = new Set(featuredItems.map((item) => item.image?.split("?")[0]));
-    const items = [
-      ...featuredItems,
-      ...result.items.filter((item) => {
-        const image = item.image?.split("?")[0];
-        if (!image || images.has(image)) return false;
-        images.add(image);
-        return true;
-      }),
-    ];
     const title = erpGroup === "sarees" ? "Sarees" : "Fabrics";
     const pageCount = Math.max(result.pages, 1);
     return (
@@ -83,13 +81,14 @@ export default async function CollectionPage({ params, searchParams }: { params:
           <h1 className="we-rule text-4xl">All {title}</h1>
           <p className="mt-3 max-w-2xl text-sm text-muted">Images and item descriptions are loaded from RetailERP.</p>
         </div>
-        {items.length ? (
-          <ErpImageGallery title={`All ${title} from RetailERP`} items={items} />
+        <Suspense><BarcodeCollectionFilters facets={facets} /></Suspense>
+        {result.items.length ? (
+          <BarcodeProductGrid items={result.items} />
         ) : (
           <p className="py-12 text-center text-sm text-muted">No ERP images are available on this page.</p>
         )}
         <p className="text-center text-xs uppercase tracking-widest text-muted">
-          Showing {items.length} ERP images · Page {result.page} of {pageCount}
+          Showing {result.items.length} ERP images · Page {result.page} of {pageCount}
         </p>
         <Suspense>
           <Pagination page={result.page} pages={result.pages} />

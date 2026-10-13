@@ -8,6 +8,7 @@ import {
   BUSINESS_FIELDS,
   ERP_BARCODE_COLLECTIONS,
   PRODUCT_GROUP_FIELDS,
+  SUPPLIER_FIELDS,
   mapBarcodeLabel,
 } from "@/lib/erp-mapping";
 import { mapLimit, resolveRecordImage, type ImageResolveOptions } from "@/lib/erp-images";
@@ -51,6 +52,53 @@ function lookupName(from: string, localField: string, nameField: string, as: str
 const JOIN_STAGES: PipelineStage[] = [
   ...lookupName(ERP_BARCODE_COLLECTIONS.productGroups, B.groupId, PRODUCT_GROUP_FIELDS.name, BARCODE_JOINED.groupName),
   ...lookupName(ERP_BARCODE_COLLECTIONS.businesses, B.businessId, BUSINESS_FIELDS.name, BARCODE_JOINED.businessName),
+  {
+    $lookup: {
+      from: ERP_BARCODE_COLLECTIONS.suppliers,
+      let: {
+        ref: `$${B.supplierId}`,
+        objectIdRef: { $convert: { input: `$${B.supplierId}`, to: "objectId", onError: null, onNull: null } },
+      },
+      pipeline: [
+        {
+          $match: {
+            $expr: {
+              $or: [
+                { $eq: ["$_id", "$$objectIdRef"] },
+                { $eq: [`$${SUPPLIER_FIELDS.code}`, "$$ref"] },
+              ],
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            code: `$${SUPPLIER_FIELDS.code}`,
+            name: { $ifNull: [`$${SUPPLIER_FIELDS.name}`, `$${SUPPLIER_FIELDS.alternateName}`] },
+          },
+        },
+        { $limit: 1 },
+      ],
+      as: "_supplier",
+    },
+  },
+  {
+    $set: {
+      [BARCODE_JOINED.supplierCode]: {
+        $ifNull: [
+          { $first: "$_supplier.code" },
+          {
+            $cond: [
+              { $regexMatch: { input: { $ifNull: [{ $toString: `$${B.supplierId}` }, ""] }, regex: /^[a-f0-9]{24}$/i } },
+              null,
+              `$${B.supplierId}`,
+            ],
+          },
+        ],
+      },
+      [BARCODE_JOINED.supplierName]: { $first: "$_supplier.name" },
+    },
+  },
 ];
 
 export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
@@ -70,6 +118,7 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
 
   private match(params: BarcodeListParams): FilterQuery<AnyDoc> {
     const and: FilterQuery<AnyDoc>[] = [];
+    if (params.barcodes?.length) and.push({ [B.barcode]: { $in: params.barcodes } });
     if (params.seriesPrefix?.trim()) {
       and.push({
         [B.barcode]: new RegExp(`^${escapeRegex(params.seriesPrefix.trim())}`, "i"),
@@ -158,13 +207,15 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
     return new Map(rows.map((r) => [r._id, r.n]));
   }
 
-  async facets(): Promise<BarcodeFacets> {
+  async facets(params: BarcodeListParams = {}): Promise<BarcodeFacets> {
     const M = await this.M();
+    const match = this.match(params);
     const countBy = (field: string): PipelineStage.FacetPipelineStage[] => [
       { $group: { _id: `$${field}`, count: { $sum: 1 } } },
       { $match: { _id: { $nin: [null, ""] } } },
     ];
     const [res] = await M.aggregate<any>([
+      ...(Object.keys(match).length ? [{ $match: match }] : []),
       {
         $facet: {
           status: [...countBy(B.status), { $sort: { count: -1 } }],
@@ -218,5 +269,24 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
     } catch {
       return null;
     }
+  }
+
+  async getByBarcodes(barcodes: string[]): Promise<BarcodeProduct[]> {
+    const uniqueBarcodes = Array.from(new Set(barcodes.filter(Boolean)));
+    if (!uniqueBarcodes.length) return [];
+    const M = await this.M();
+    const docs = await M.aggregate<AnyDoc>([
+      { $match: { [B.barcode]: { $in: uniqueBarcodes } } },
+      { $sort: { _id: -1 } },
+      { $project: PROJECTION },
+      ...JOIN_STAGES,
+    ]);
+    const { items } = await this.hydrate(docs);
+    const byBarcode = new Map<string, BarcodeProduct>();
+    for (const item of items) if (!byBarcode.has(item.barcode)) byBarcode.set(item.barcode, item);
+    return uniqueBarcodes.flatMap((barcode) => {
+      const item = byBarcode.get(barcode);
+      return item ? [item] : [];
+    });
   }
 }

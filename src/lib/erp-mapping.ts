@@ -179,6 +179,7 @@ export const ERP_BARCODE_COLLECTIONS = {
   labels: "barcodeLabel",
   productGroups: "productgroup", // barcodeLabel.groupId    -> productgroup._id (hex string)
   businesses: "business", // barcodeLabel.businessId -> business._id (hex string)
+  suppliers: "supplier",
 } as const;
 
 export const BARCODE_LABEL_FIELDS = {
@@ -203,6 +204,7 @@ export const BARCODE_LABEL_FIELDS = {
   grcNo: "grcNo",
   groupId: "groupId",
   businessId: "businessId",
+  supplierId: "supplierId",
   imageUrl: "imageUrl", // 86%; see src/lib/erp-images.ts
   filePath: "filePath", // rare upload path; second image candidate
   createdAt: "createdAt",
@@ -212,6 +214,7 @@ export type BarcodeLabelFieldKey = keyof typeof BARCODE_LABEL_FIELDS;
 
 export const PRODUCT_GROUP_FIELDS = { name: "name", businessId: "businessId" } as const; // businessId is an ObjectId here
 export const BUSINESS_FIELDS = { name: "name" } as const;
+export const SUPPLIER_FIELDS = { code: "accountNo", name: "businessName", alternateName: "shortName" } as const;
 
 /** Fields the admin Products search box matches (case-insensitive substring). */
 export const BARCODE_SEARCH_FIELDS = [
@@ -225,7 +228,12 @@ export const BARCODE_SEARCH_FIELDS = [
 ] as const;
 
 /** Names joined in by the repository's $lookup stages. */
-export const BARCODE_JOINED = { groupName: "_groupName", businessName: "_businessName" } as const;
+export const BARCODE_JOINED = {
+  groupName: "_groupName",
+  businessName: "_businessName",
+  supplierCode: "_supplierCode",
+  supplierName: "_supplierName",
+} as const;
 
 /**
  * barcodeLabel document (+ joined group/business names) -> domain object.
@@ -260,6 +268,8 @@ export function mapBarcodeLabel(raw: any): BarcodeProduct {
     groupId: toStr(g("groupId")),
     business: toStr(raw?.[BARCODE_JOINED.businessName]),
     businessId: toStr(g("businessId")),
+    supplierCode: toStr(raw?.[BARCODE_JOINED.supplierCode]),
+    supplierName: toStr(raw?.[BARCODE_JOINED.supplierName]),
     qty: qty == null ? undefined : Math.round(qty * 1000) / 1000, // ERP stores float noise like 0.04999999999999999
     uom: toStr(g("uom")) ?? toStr(g("uomType")),
     uomType: toStr(g("uomType")),
@@ -273,6 +283,44 @@ export function mapBarcodeLabel(raw: any): BarcodeProduct {
     slug: productSlug(name, barcode),
     createdAt: toISO(g("createdAt")),
     updatedAt: toISO(g("updatedAt")),
+  };
+}
+
+export function barcodeProductToProduct(item: BarcodeProduct): Product {
+  const mrp = item.price ?? item.offerPrice ?? 0;
+  const sellingPrice = item.offerPrice != null && item.offerPrice > 0 && item.offerPrice < mrp ? item.offerPrice : mrp;
+  const qty = item.qty ?? (item.status === "IN_STOCK" ? 1 : 0);
+  const category = item.business ?? item.group ?? "";
+  return {
+    id: item.id,
+    sku: item.barcode,
+    barcode: item.barcode,
+    slug: item.slug,
+    name: item.itemName || item.name,
+    description: item.printDescription || item.name,
+    category,
+    subCategory: item.group,
+    occasion: [],
+    blouseIncluded: false,
+    dimensions: { weight: 0 },
+    pricing: {
+      mrp,
+      sellingPrice,
+      discountPercent: mrp > sellingPrice ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0,
+      gstPercent: item.gstPercent ?? 5,
+      hsnCode: item.hsnCode,
+      currency: "INR",
+    },
+    stock: {
+      qty,
+      status: qty <= 0 ? "out_of_stock" : qty <= 3 ? "low_stock" : "in_stock",
+    },
+    images: item.image ? [item.image] : [],
+    tags: [],
+    isNewArrival: false,
+    isActive: item.status === "IN_STOCK" && qty > 0,
+    source: "erp",
+    isBarcodeLabel: true,
   };
 }
 

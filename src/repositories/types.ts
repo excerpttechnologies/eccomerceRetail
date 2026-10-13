@@ -61,9 +61,11 @@ export interface MasterDataSource {
 export interface BarcodeLabelRepository {
   list(params: BarcodeListParams): Promise<Paginated<BarcodeProduct> & { skipped: number }>;
   /** Filter options with live counts (status, product group, business, UOM type). */
-  facets(): Promise<BarcodeFacets>;
+  facets(params?: BarcodeListParams): Promise<BarcodeFacets>;
   /** Newest label carrying this barcode (images not resolved). */
   getByBarcode(barcode: string): Promise<BarcodeProduct | null>;
+  /** Newest label for each requested barcode, with ERP joins and images resolved. */
+  getByBarcodes(barcodes: string[]): Promise<BarcodeProduct[]>;
 }
 
 /* ---------------- Website-owned data ---------------- */

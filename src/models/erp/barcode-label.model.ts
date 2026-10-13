@@ -19,6 +19,7 @@ export const BarcodeLabelSchema = new Schema(
     [B.status]: String,
     [B.groupId]: String,
     [B.businessId]: String,
+    [B.supplierId]: String,
     [B.uomType]: String,
   }),
   {

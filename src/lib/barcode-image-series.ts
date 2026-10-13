@@ -1,6 +1,7 @@
 import { getBarcodeLabels } from "@/repositories";
 
 export type BarcodeSeriesGroup = "sarees" | "fabrics";
+export type BarcodeImageFilters = { group?: string; business?: string; status?: string; uomType?: string; q?: string };
 
 async function getBarcodeImageScopes(group: BarcodeSeriesGroup) {
   const facets = await getBarcodeLabels().facets();
@@ -18,14 +19,15 @@ async function getBarcodeImageScopes(group: BarcodeSeriesGroup) {
   return { groupIds, businessIds };
 }
 
-/** All ERP barcode-label images for a clothing category, paged for the storefront listing. */
-export async function getBarcodeImageCatalog(group: BarcodeSeriesGroup, page: number, limit = 96) {
+/** All ERP barcode-label images for a clothing category, paged and filtered for the storefront. */
+export async function getBarcodeImageCatalog(group: BarcodeSeriesGroup, page: number, filters: BarcodeImageFilters = {}, limit = 48) {
   const barcodeLabels = getBarcodeLabels();
   const { groupIds, businessIds } = await getBarcodeImageScopes(group);
   if (!groupIds.length && !businessIds.length) return { items: [], total: 0, page, pages: 0 };
   const catalog = await barcodeLabels.list({
     groupIds,
     businessIds,
+    ...filters,
     page,
     limit,
     imageCheckDeadlineMs: 30_000,
@@ -36,6 +38,12 @@ export async function getBarcodeImageCatalog(group: BarcodeSeriesGroup, page: nu
     page: catalog.page,
     pages: catalog.pages,
   };
+}
+
+export async function getBarcodeImageFilterOptions(group: BarcodeSeriesGroup) {
+  const scopes = await getBarcodeImageScopes(group);
+  const facets = await getBarcodeLabels().facets(scopes);
+  return facets;
 }
 
 export async function getBarcodeImageSeries(group: BarcodeSeriesGroup) {

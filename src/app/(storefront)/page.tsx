@@ -2,40 +2,39 @@ import type { Metadata } from "next";
 import type { CategoryNode } from "@/domain/types";
 import { getMasterData, getSite } from "@/repositories";
 import { collectionToListParams } from "@/repositories/web/site.repository";
-import { getBarcodeImageSeries } from "@/lib/barcode-image-series";
 import { getCategoryTree, getSettings } from "@/lib/site-data";
 import { HeroCarousel } from "@/components/home/hero-carousel";
-import { CategoryTiles, ChipStrip, ErpImageGallery, FeaturedCollections, HelpJump, InstagramStrip, LifestyleBanners, Newsletter, ProductSection, SupportPanel, Testimonials, TrustBadges } from "@/components/home/sections";
+import { CategoryTiles, ChipStrip, FeaturedCollections, HelpJump, InstagramStrip, LifestyleBanners, Newsletter, ProductSection, SupportPanel, Testimonials, TrustBadges } from "@/components/home/sections";
 
 export const metadata: Metadata = { title: "Handloom Sarees & Fabrics" };
 
 const fallbackHeroSlides = [
   {
-    id: "default-kanchipuram",
-    title: "The Kanchipuram Edit",
-    subtitle: "Temple borders, korvai weaves, twelve new colours for the wedding season.",
-    ctaLabel: "Shop Kanchipuram",
-    ctaHref: "/collections/sarees?fabric=Kanchipuram%20Silk",
-    desktop: "https://wovenessence.in/images/hero-1.jpg",
-    alt: "Kanchipuram silk saree",
+    id: "default-bridal-silk",
+    title: "Made for Celebrations",
+    subtitle: "Handwoven silk, with details to treasure.",
+    ctaLabel: "Explore sarees",
+    ctaHref: "/collections/sarees",
+    desktop: "/hero-red-silk.png",
+    alt: "Bride wearing a red silk saree in a traditional setting",
   },
   {
-    id: "default-yanai",
-    title: "Yanai Motif Sarees",
-    subtitle: "The elephant, woven the way Kanchi has always woven it.",
-    ctaLabel: "See the collection",
-    ctaHref: "/collections/yanai-motif-sarees",
-    desktop: "https://wovenessence.in/images/hero-2.jpg",
-    alt: "Elephant motif saree",
+    id: "default-pink-silk",
+    title: "A Tradition to Treasure",
+    subtitle: "Beautiful handwoven sarees for every celebration.",
+    ctaLabel: "Shop sarees",
+    ctaHref: "/collections/sarees",
+    desktop: "/hero-pink-silk.png",
+    alt: "Woman wearing a pink and gold silk saree",
   },
   {
-    id: "default-everyday",
-    title: "Everyday Handlooms",
-    subtitle: "Linen, Chanderi and cotton — under ₹5,000.",
-    ctaLabel: "Shop under ₹5,000",
-    ctaHref: "/collections/under-5000",
-    desktop: "https://wovenessence.in/images/hero-3.jpg",
-    alt: "Linen saree",
+    id: "default-gold-silk",
+    title: "A Golden Celebration",
+    subtitle: "Radiant silk sarees, woven for unforgettable moments.",
+    ctaLabel: "Shop sarees",
+    ctaHref: "/collections/sarees",
+    desktop: "/hero-gold-silk.png",
+    alt: "Woman wearing a gold silk saree against a red backdrop",
   },
 ];
 
@@ -46,34 +45,48 @@ const defaultCategories: CategoryNode[] = [
   { id: "default-dupatta", name: "Dupatta", slug: "dupatta", image: "https://wovenessence.in/images/col-yanai.jpg", sortOrder: 3, isActive: true, children: [] },
 ];
 
+const categoryImageOverrides: Record<string, string> = {
+  sarees: "/category-sarees-cream.webp",
+  fabrics: "/category-fabrics-navy.webp",
+  "plain-fabrics": "/category-plain-fabrics-blue.webp",
+  dupatta: "/category-dupatta-red-green.webp",
+};
+
 const defaultFeaturedCollections = [
   {
     id: "default-yanai",
     name: "Yanai Motif Sarees",
     slug: "yanai-motif-sarees",
     description: "Traditional Kanchipuram sarees with the elephant motif.",
-    image: "https://wovenessence.in/images/col-yanai.jpg",
+    image: "/curated-saree-black-floral.webp",
   },
   {
     id: "default-bridal",
     name: "Bridal Kanchipuram",
     slug: "bridal-kanchipuram",
     description: "Rich Kanchipuram silks for wedding celebrations.",
-    image: "https://wovenessence.in/images/col-bridal.jpg",
+    image: "/curated-saree-orange-temple.webp",
   },
   {
     id: "default-banarasi",
     name: "Festive Banarasi",
     slug: "festive-banarasi",
     description: "Banarasi weaves in festive colours.",
-    image: "https://wovenessence.in/images/col-banarasi.jpg",
+    image: "/curated-saree-orange-classic.webp",
   },
   {
     id: "default-under-5000",
     name: "Under ₹5,000",
     slug: "under-5000",
     description: "Everyday handlooms under ₹5,000.",
-    image: "https://wovenessence.in/images/col-5000.jpg",
+    image: "/curated-saree-rose.webp",
+  },
+  {
+    id: "default-saree-edit",
+    name: "The Saree Edit",
+    slug: "sarees",
+    description: "Discover handwoven sarees for every occasion.",
+    image: "/curated-saree-teal.webp",
   },
 ];
 
@@ -87,12 +100,13 @@ export default async function Home() {
     site.homepageSection("support"),
     site.banners("hero"),
   ]);
-  const homepageSections = sections.length
+  const homepageSections = (sections.length
     ? sections
     : [
         { key: "categories", title: "Shop by category", subtitle: null, config: {} },
         { key: "featuredCollections", title: "Curated collections", subtitle: null, config: {} },
-      ];
+      ]).filter((section) => section.key !== "newArrivals");
+  const homeContact = { ...settings.contact, phone: "099163 11500" };
   const configuredHeroSlides = heroBanners
     .filter((banner) => banner.image?.desktop?.trim())
     .map((banner) => {
@@ -114,13 +128,6 @@ export default async function Home() {
       slides={configuredHeroSlides.length ? configuredHeroSlides : fallbackHeroSlides}
     />
   );
-  const [sareeSeries, fabricSeries] = await Promise.all([
-    getBarcodeImageSeries("sarees"),
-    getBarcodeImageSeries("fabrics"),
-  ]);
-  const sareeItems = sareeSeries.flatMap((series) => series.items);
-  const fabricItems = fabricSeries.flatMap((series) => series.items);
-
   const rendered = await Promise.all(
     homepageSections.map(async (s) => {
       const cfg = (s.config ?? {}) as Record<string, unknown>;
@@ -133,22 +140,42 @@ export default async function Home() {
           return <TrustBadges key={s.key} badges={settings.trustBadges ?? []} />;
         case "categories": {
           const categories = await getCategoryTree();
-          return <CategoryTiles key={s.key} categories={categories.length ? categories : defaultCategories} title={s.title} subtitle={s.subtitle} />;
+          const categoryTiles = categories.length ? categories : defaultCategories;
+          return (
+            <CategoryTiles
+              key={s.key}
+              categories={categoryTiles.map((category) => ({
+                ...category,
+                image: categoryImageOverrides[category.slug] ?? category.image,
+              }))}
+              title={s.title}
+              subtitle={s.subtitle}
+            />
+          );
         }
         case "featuredCollections": {
           const collections = await site.collections({ featuredOnly: true });
+          const curatedCollections = collections.length
+            ? collections.map((collection) => ({
+                id: String(collection._id),
+                name: collection.name,
+                slug: collection.slug,
+                description: collection.description,
+                image: collection.banner?.desktop,
+              }))
+            : defaultFeaturedCollections;
           return (
             <FeaturedCollections
               key={s.key}
-              collections={collections.length
-                ? collections.map((collection) => ({
-                    id: String(collection._id),
-                    name: collection.name,
-                    slug: collection.slug,
-                    description: collection.description,
-                    image: collection.banner?.desktop,
-                  }))
-                : defaultFeaturedCollections}
+              collections={[
+                ...curatedCollections,
+                ...defaultFeaturedCollections.slice(curatedCollections.length, 5),
+              ]
+                .slice(0, 5)
+                .map((collection, index) => ({
+                  ...collection,
+                  image: defaultFeaturedCollections[index].image,
+                }))}
               title={s.title}
               subtitle={s.subtitle}
             />
@@ -188,7 +215,7 @@ export default async function Home() {
         case "newsletter":
           return <Newsletter key={s.key} title={s.title} subtitle={s.subtitle} />;
         case "support":
-          return <SupportPanel key={s.key} title={s.title} subtitle={s.subtitle} contact={settings.contact} whatsappNumber={settings.whatsappNumber} />;
+          return <SupportPanel key={s.key} title={s.title} subtitle={s.subtitle} contact={homeContact} settings={settings} whatsappNumber={settings.whatsappNumber} />;
         default:
           return null;
       }
@@ -199,9 +226,7 @@ export default async function Home() {
     <>
       {!homepageSections.some((section) => section.key === "hero") && hero}
       {rendered}
-      <ErpImageGallery title="Sarees from RetailERP" items={sareeItems} />
-      <ErpImageGallery title="Fabrics from RetailERP" items={fabricItems} />
-      {!supportSection && <SupportPanel title="How can we help?" contact={settings.contact} whatsappNumber={settings.whatsappNumber} />}
+      {!supportSection && <SupportPanel title="How can we help?" contact={homeContact} settings={settings} whatsappNumber={settings.whatsappNumber} />}
       <HelpJump />
     </>
   );

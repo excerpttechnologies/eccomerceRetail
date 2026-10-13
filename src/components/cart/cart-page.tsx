@@ -33,11 +33,11 @@ export function CartPage() {
             )}
             {cart.lines.map((l) => (
               <li key={l.sku} className="flex gap-5 py-5">
-                <Link href={`/products/${l.product.slug}`} className="relative h-36 w-28 shrink-0 overflow-hidden rounded-sm bg-line">
+                <Link href={l.product.isBarcodeLabel ? `/collections/${/fabric|fabs/i.test(l.product.category) ? "fabrics" : "sarees"}?q=${encodeURIComponent(l.sku)}` : `/products/${l.product.slug}`} className="relative h-36 w-28 shrink-0 overflow-hidden rounded-sm bg-line">
                   {l.product.images[0] ? <Image src={l.product.images[0]} alt={l.product.name} fill sizes="112px" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}
                 </Link>
                 <div className="flex min-w-0 flex-1 flex-col">
-                  <Link href={`/products/${l.product.slug}`} className="text-base hover:text-maroon">{l.product.name}</Link>
+                  <Link href={l.product.isBarcodeLabel ? `/collections/${/fabric|fabs/i.test(l.product.category) ? "fabrics" : "sarees"}?q=${encodeURIComponent(l.sku)}` : `/products/${l.product.slug}`} className="text-base hover:text-maroon">{l.product.name}</Link>
                   <p className="text-xs text-muted">SKU {l.sku}</p>
                   <Price amount={l.product.pricing.sellingPrice} mrp={l.product.pricing.mrp} size="sm" className="mt-1" />
                   {l.product.stock.qty <= 3 && <p className="mt-1 text-xs text-gold">Only {l.product.stock.qty} left</p>}

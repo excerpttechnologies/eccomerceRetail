@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { parseBarcodeListParams } from "@/lib/api/query";
 import { CODE128_PATTERNS, encodeCode128B } from "@/lib/barcode/code128";
 import { isAllowedImageUrl, normalizeImageRef, presignS3Get, resolveRecordImage } from "@/lib/erp-images";
-import { BARCODE_JOINED, mapBarcodeLabel } from "@/lib/erp-mapping";
+import { BARCODE_JOINED, barcodeProductToProduct, mapBarcodeLabel } from "@/lib/erp-mapping";
 
 const BASE = "https://wovenessence.etpl.ai";
 const SPACES = ["templeimg.blr1.digitaloceanspaces.com"];
@@ -30,10 +30,13 @@ const label = {
   batchType: "batch",
   groupId: "6a9187ddc1c6f8349932be26",
   businessId: "6a853ba0fb266c4358beb530",
+  supplierId: "G589",
   imageUrl: "/api/files/66/6693a54d44985b1ddff76a2d061b8a1b76b0a740b515321d8677a873698cb2f1.jpg",
   createdAt: new Date("2026-09-30T10:00:00Z"),
   [BARCODE_JOINED.groupName]: "3 PC SET",
   [BARCODE_JOINED.businessName]: "TEMPLE FABRICS, SILKS & SAREES",
+  [BARCODE_JOINED.supplierCode]: "G589",
+  [BARCODE_JOINED.supplierName]: "SILK SUPPLIER",
 };
 
 describe("mapBarcodeLabel", () => {
@@ -52,6 +55,8 @@ describe("mapBarcodeLabel", () => {
       status: "IN_STOCK",
       group: "3 PC SET",
       business: "TEMPLE FABRICS, SILKS & SAREES",
+      supplierCode: "G589",
+      supplierName: "SILK SUPPLIER",
       createdAt: "2026-09-30T10:00:00.000Z",
     });
     expect(p.slug).toBe("handloom-multi-colour-jari-checks-6a2346");
@@ -77,6 +82,20 @@ describe("mapBarcodeLabel", () => {
 
   it("rejects a record without a barcode instead of inventing one", () => {
     expect(() => mapBarcodeLabel({ _id: "x", itemCode: "A" })).toThrow(/barcodeNo/);
+  });
+});
+
+describe("barcodeProductToProduct", () => {
+  it("preserves the barcode SKU, ERP price, stock, and image for bag products", () => {
+    const product = barcodeProductToProduct({ ...mapBarcodeLabel(label), image: "https://example.com/saree.jpg" });
+    expect(product).toMatchObject({
+      sku: "6A2346",
+      pricing: { mrp: 2080, sellingPrice: 2080, hsnCode: "50072090" },
+      stock: { qty: 12.85, status: "in_stock" },
+      images: ["https://example.com/saree.jpg"],
+      isActive: true,
+      isBarcodeLabel: true,
+    });
   });
 });
 

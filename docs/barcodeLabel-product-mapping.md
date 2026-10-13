@@ -87,7 +87,7 @@ otherwise proxy any bucket.
 | --- | --- | --- |
 | `itemId` → `item._id` | 3,382 labels; `item.name` equals `barcodeLabel.itemName` on all 3,381 that join; `item.image` is always empty | not joined (no extra data) |
 | `productImage` collection | 10 documents, keyed by `barcodeGenerated` (set on 13% of labels); 7 hold an `imageUrl` on the dead `wovenessencemobile.etpl.ai` host, 3 hold inline `imageData` | not joined (no loadable image to gain) |
-| `supplierId` | 3,384 hex ids, 0 of 500 sampled match `supplier._id`; 7,967 are codes (`G589`) with no matching field | not shown (and `supplier` holds PII) |
+| `supplierId` | joined to `supplier._id` (ObjectId) or `supplier.accountNo` | supplier code (`accountNo`) and name (`businessName`, fallback `shortName`) are projected into the admin edit drawer; unresolved values are omitted |
 | `groupId` like `mtr-6`, `pc-86` | 722 labels, no `productgroup` document | no group shown; not offered as a filter |
 | `businessId` `6aabd7c858bc2f2790eba600` | 40 labels, not in `business` | filter label "Unlisted business ·eba600" |
 

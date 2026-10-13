@@ -300,7 +300,7 @@ async function main() {
     _id: storeId,
     ...buildStoreDoc({
       name: "Bangalore Urban",
-      address: "Temple Fabrics, 12 Commercial Street, Shivaji Nagar, Bengaluru 560001",
+      address: "1ST FLOOR 4T, BLOCK 34, 27th Cross, 4th T Block East, 4th Block, Jayanagar, Bengaluru, Karnataka 560011",
       phone: "+91 80 4000 0000",
       city: "Bengaluru",
     }),
@@ -421,12 +421,12 @@ async function main() {
     key: "default",
     defaultStoreId: String(storeId),
     contact: {
-      phone: "+91 80 4000 0000",
+      phone: "099163 11500",
       email: "hello@wovenessence.in",
-      address: "Temple Fabrics, 12 Commercial Street, Shivaji Nagar, Bengaluru 560001",
+      address: "1ST FLOOR 4T, BLOCK 34, 27th Cross, 4th T Block East, 4th Block, Jayanagar, Bengaluru, Karnataka 560011",
       hours: "Mon–Sat, 10:30 am – 8:30 pm",
     },
-    social: { instagram: "https://instagram.com/wovenessence", facebook: "", youtube: "" },
+    social: { instagram: "https://www.instagram.com/templefabrics/?hl=en", facebook: "", youtube: "" },
     seo: {
       defaultTitle: "Woven Essence by Temple Fabrics — Handloom Sarees, Bengaluru",
       defaultDescription:

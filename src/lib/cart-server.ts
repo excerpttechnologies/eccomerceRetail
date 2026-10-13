@@ -4,7 +4,8 @@ import { getWebConnection } from "@/lib/db";
 import { CART_COOKIE, cookieOptions, getCustomerSession } from "@/lib/auth";
 import { computeTotals, type CartLine, type CartTotals, type CouponLike } from "@/lib/pricing";
 import { CartModel, CouponModel, WishlistModel } from "@/models/web/commerce.models";
-import { getMasterData, getSite } from "@/repositories";
+import { getBarcodeLabels, getMasterData, getSite } from "@/repositories";
+import { barcodeProductToProduct } from "@/lib/erp-mapping";
 
 export interface CartView {
   token: string;
@@ -12,6 +13,11 @@ export interface CartView {
   unavailable: { sku: string; qty: number }[];
   couponCode?: string;
   totals: CartTotals;
+}
+
+async function getBarcodeProduct(sku: string) {
+  const [item] = await getBarcodeLabels().getByBarcodes([sku]);
+  return item ? barcodeProductToProduct(item) : null;
 }
 
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
@@ -84,6 +90,9 @@ export async function getCartView(token?: string | null): Promise<CartView> {
   const items = cart.items ?? [];
   const products = items.length ? await getMasterData().products.getBySkus(items.map((i) => i.sku)) : [];
   const bySku = new Map(products.map((p) => [p.sku, p]));
+  const missingSkus = items.map((item) => item.sku).filter((sku) => !bySku.has(sku));
+  const barcodeProducts = missingSkus.length ? await getBarcodeLabels().getByBarcodes(missingSkus) : [];
+  for (const item of barcodeProducts) bySku.set(item.barcode, barcodeProductToProduct(item));
   const lines: CartLine[] = [];
   const unavailable: { sku: string; qty: number }[] = [];
   for (const it of items) {
@@ -98,7 +107,7 @@ export async function getCartView(token?: string | null): Promise<CartView> {
 
 export async function addToCart(sku: string, qty = 1): Promise<CartView> {
   const token = (await getCartToken())!;
-  const product = await getMasterData().products.getBySku(sku);
+  const product = (await getMasterData().products.getBySku(sku)) ?? (await getBarcodeProduct(sku));
   if (!product || !product.isActive) throw Object.assign(new Error("Product not available"), { status: 404, code: "NOT_FOUND" });
   if (product.stock.qty <= 0) throw Object.assign(new Error("This item is out of stock"), { status: 409, code: "OUT_OF_STOCK" });
   const { M, cart } = await rawCart(token);
@@ -114,7 +123,7 @@ export async function setCartQty(sku: string, qty: number): Promise<CartView> {
   const { M } = await rawCart(token);
   if (qty <= 0) await M.updateOne({ token }, { $pull: { items: { sku } }, $set: { lastActivityAt: new Date() } });
   else {
-    const product = await getMasterData().products.getBySku(sku);
+    const product = (await getMasterData().products.getBySku(sku)) ?? (await getBarcodeProduct(sku));
     const capped = Math.min(qty, product?.stock.qty ?? qty);
     await M.updateOne({ token, "items.sku": sku }, { $set: { "items.$.qty": capped, lastActivityAt: new Date() } });
   }

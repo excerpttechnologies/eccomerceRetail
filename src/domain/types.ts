@@ -49,6 +49,7 @@ export interface Product {
   createdAt?: string;
   updatedAt?: string;
   source: DataSource;
+  isBarcodeLabel?: boolean;
   /** Website-owned overrides merged from productWebMeta (SEO, featured flag, extra images). */
   web?: {
     seoTitle?: string;
@@ -240,6 +241,8 @@ export interface BarcodeProduct {
   groupId?: string;
   business?: string;
   businessId?: string;
+  supplierCode?: string;
+  supplierName?: string;
   qty?: number;
   uom?: string;
   uomType?: string;
@@ -263,6 +266,7 @@ export interface BarcodeProduct {
 
 export interface BarcodeListParams {
   q?: string;
+  barcodes?: string[];
   seriesPrefix?: string;
   /** Internal storefront filters for the combined ERP clothing catalogue. */
   groupIds?: string[];

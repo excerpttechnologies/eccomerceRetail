@@ -10,7 +10,7 @@ import { Badge, type BadgeTone } from "@/components/ui/badge";
 import { Barcode } from "@/components/ui/barcode";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/drawer";
-import { Field, Input, Select } from "@/components/ui/input";
+import { Field, Input, Select, Textarea } from "@/components/ui/input";
 
 type Row = BarcodeProduct & {
   _id: string;
@@ -20,6 +20,13 @@ type Row = BarcodeProduct & {
     seoDescription?: string;
     itemName?: string;
     barcodeName?: string;
+    productType?: string;
+    itemType?: string;
+    groupNameOverride?: string;
+    supplierCodeOverride?: string;
+    supplierNameOverride?: string;
+    printDescriptionOverride?: string;
+    ecommOffPercent?: number;
     barcodePriceOverride?: number;
     barcodeQtyOverride?: number;
     barcodeStatusOverride?: string;
@@ -28,9 +35,11 @@ type Row = BarcodeProduct & {
   } | null;
 };
 type Filters = { status: string; group: string; business: string; uomType: string };
-type ProductEditValues = { itemName: string; barcodeName: string; price: string; quantity: string; status: string };
+type ProductEditValues = { itemName: string; barcodeName: string; productType: string; itemType: string; groupName: string; supplierCode: string; supplierName: string; printDescription: string; ecommOffPercent: string; price: string; quantity: string; status: string };
 
 const NO_FILTERS: Filters = { status: "", group: "", business: "", uomType: "" };
+const PRODUCT_TYPES = ["SAREES", "FABRICS", "PLAIN FABRICS", "DUPATTA", "NEW ARRIVALS"] as const;
+const ITEM_TYPES = ["By Weave", "By Fabric", "By Craft", "By Occasion"] as const;
 const STATUS_TONE: Record<string, BadgeTone> = { IN_STOCK: "green", IN_TRANSIT: "blue", SOLD: "muted", HISTORY: "muted", VOID: "red" };
 const statusLabel = (s: string) => s.toLowerCase().replace(/_/g, " ");
 const effectivePrice = (row: Row) => row.web?.barcodePriceOverride ?? row.price;
@@ -55,12 +64,26 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<Row | null>(null);
   const [itemName, setItemName] = useState("");
   const [barcodeName, setBarcodeName] = useState("");
+  const [productType, setProductType] = useState("");
+  const [itemType, setItemType] = useState("");
+  const [groupName, setGroupName] = useState("");
+  const [supplierCode, setSupplierCode] = useState("");
+  const [supplierName, setSupplierName] = useState("");
+  const [printDescription, setPrintDescription] = useState("");
+  const [ecommOffPercent, setEcommOffPercent] = useState("");
   const [price, setPrice] = useState("");
   const [quantity, setQuantity] = useState("");
   const [status, setStatus] = useState("");
   const [initialEditValues, setInitialEditValues] = useState<ProductEditValues>({
     itemName: "",
     barcodeName: "",
+    productType: "",
+    itemType: "",
+    groupName: "",
+    supplierCode: "",
+    supplierName: "",
+    printDescription: "",
+    ecommOffPercent: "",
     price: "",
     quantity: "",
     status: "",
@@ -93,6 +116,13 @@ export default function ProductsPage() {
         sku: editing!.barcode,
         ...(itemName !== initialEditValues.itemName ? { itemName: itemName.trim() || null } : {}),
         ...(barcodeName !== initialEditValues.barcodeName ? { barcodeName: barcodeName.trim() || null } : {}),
+        ...(productType !== initialEditValues.productType ? { productType: productType || null } : {}),
+        ...(itemType !== initialEditValues.itemType ? { itemType: itemType || null } : {}),
+        ...(groupName !== initialEditValues.groupName ? { groupNameOverride: groupName.trim() || null } : {}),
+        ...(supplierCode !== initialEditValues.supplierCode ? { supplierCodeOverride: supplierCode.trim() || null } : {}),
+        ...(supplierName !== initialEditValues.supplierName ? { supplierNameOverride: supplierName.trim() || null } : {}),
+        ...(printDescription !== initialEditValues.printDescription ? { printDescriptionOverride: printDescription.trim() || null } : {}),
+        ...(ecommOffPercent !== initialEditValues.ecommOffPercent ? { ecommOffPercent: ecommOffPercent.trim() ? Number(ecommOffPercent) : null } : {}),
         ...(price !== initialEditValues.price ? { barcodePriceOverride: price.trim() ? Number(price) : null } : {}),
         ...(quantity !== initialEditValues.quantity ? { barcodeQtyOverride: quantity.trim() ? Number(quantity) : null } : {}),
         ...(status !== initialEditValues.status ? { barcodeStatusOverride: status || null } : {}),
@@ -112,7 +142,7 @@ export default function ProductsPage() {
         <Badge tone="green">Synced from RetailERP</Badge>
       </PageHeader>
       <p className="mb-4 rounded-sm border border-gold/40 bg-gold/5 p-3 text-xs text-ink/80">
-        Barcode and item code stay as supplied by RetailERP. Item name, barcode name, price, quantity and status changes are saved as website overrides.
+        Barcode and item code stay as supplied by RetailERP. Product names, group, supplier details, type, ECOMM OFF %, price, quantity and status are saved as website overrides.
       </p>
       <div className="mb-3 flex flex-wrap gap-2">
         <Input placeholder="Search barcode / item code / name…" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
@@ -140,7 +170,7 @@ export default function ProductsPage() {
               { key: "name", label: "Product", render: (r) => {
                 const primaryName = r.web?.itemName || r.web?.barcodeName || r.name;
                 const secondaryName = r.web?.itemName && r.web?.barcodeName ? r.web.barcodeName : null;
-                return <><span className="font-medium">{primaryName}</span>{secondaryName && <span className="block text-xs text-muted">{secondaryName}</span>}{r.group && <span className="block text-xs text-muted">{r.group}</span>}</>;
+                return <><span className="font-medium">{primaryName}</span>{secondaryName && <span className="block text-xs text-muted">{secondaryName}</span>}{(r.web?.groupNameOverride ?? r.group) && <span className="block text-xs text-muted">{r.web?.groupNameOverride ?? r.group}</span>}</>;
               } },
               { key: "barcode", label: "Barcode", render: (r) => <><Barcode value={r.barcode} height={26} className="text-ink" />{r.barcodeLabelCount ? <span className="block text-[11px] text-amber-800">on {r.barcodeLabelCount} labels</span> : null}</> },
               { key: "code", label: "Item code", render: (r) => <>{r.itemCode && <span className="font-mono text-xs">{r.itemCode}</span>}{r.oldBarcode && <span className="block font-mono text-[11px] text-muted">old {r.oldBarcode}</span>}</> },
@@ -162,6 +192,13 @@ export default function ProductsPage() {
                 const values = {
                   itemName: r.web?.itemName ?? "",
                   barcodeName: r.web?.barcodeName ?? "",
+                  productType: r.web?.productType ?? "",
+                  itemType: r.web?.itemType ?? "",
+                  groupName: r.web?.groupNameOverride ?? r.group ?? "",
+                  supplierCode: r.web?.supplierCodeOverride ?? r.supplierCode ?? "",
+                  supplierName: r.web?.supplierNameOverride ?? r.supplierName ?? "",
+                  printDescription: r.web?.printDescriptionOverride ?? r.printDescription ?? "",
+                  ecommOffPercent: String(r.web?.ecommOffPercent ?? ""),
                   price: String(effectivePrice(r) ?? ""),
                   quantity: String(effectiveQty(r) ?? ""),
                   status: r.web?.barcodeStatusOverride ?? "",
@@ -169,6 +206,13 @@ export default function ProductsPage() {
                 setInitialEditValues(values);
                 setItemName(values.itemName);
                 setBarcodeName(values.barcodeName);
+                setProductType(values.productType);
+                setItemType(values.itemType);
+                setGroupName(values.groupName);
+                setSupplierCode(values.supplierCode);
+                setSupplierName(values.supplierName);
+                setPrintDescription(values.printDescription);
+                setEcommOffPercent(values.ecommOffPercent);
                 setPrice(values.price);
                 setQuantity(values.quantity);
                 setStatus(values.status);
@@ -189,16 +233,41 @@ export default function ProductsPage() {
                 <Barcode value={editing.barcode} height={48} moduleWidth={2} className="mt-3 text-ink" />
               </div>
             </div>
-            {editing.barcodeLabelCount ? (
-              <p className="rounded-sm border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                This barcode appears on {editing.barcodeLabelCount} ERP labels; website overrides apply to all matching labels. Barcode and item code remain unchanged.
-              </p>
-            ) : null}
             <Field label="Item name">
               <Input maxLength={160} value={itemName} onChange={(event) => setItemName(event.target.value)} />
             </Field>
-            <Field label="Barcode name">
+            <Field label="Product name">
               <Input maxLength={160} value={barcodeName} onChange={(event) => setBarcodeName(event.target.value)} />
+            </Field>
+            <Field label="Product type">
+              <Select value={productType} onChange={(event) => setProductType(event.target.value)}>
+                <option value="">Select product type</option>
+                {PRODUCT_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
+              </Select>
+            </Field>
+            <Field label="Item type">
+              <Select value={itemType} onChange={(event) => setItemType(event.target.value)}>
+                <option value="">Select item type</option>
+                {ITEM_TYPES.map((value) => <option key={value} value={value}>{value}</option>)}
+              </Select>
+            </Field>
+            <Field label="Item code">
+              <Input value={editing.itemCode ?? ""} readOnly />
+            </Field>
+            <Field label="Group name">
+              <Input maxLength={160} value={groupName} onChange={(event) => setGroupName(event.target.value)} />
+            </Field>
+            <Field label="Supplier code">
+              <Input maxLength={120} value={supplierCode} onChange={(event) => setSupplierCode(event.target.value)} />
+            </Field>
+            <Field label="Supplier name">
+              <Input maxLength={160} value={supplierName} onChange={(event) => setSupplierName(event.target.value)} />
+            </Field>
+            <Field label="HSN code">
+              <Input value={editing.hsnCode ?? ""} readOnly />
+            </Field>
+            <Field label="ECOMM OFF (%)">
+              <Input type="number" min="0" max="100" step="0.01" inputMode="decimal" value={ecommOffPercent} onChange={(event) => setEcommOffPercent(event.target.value)} />
             </Field>
             <Field label="Price (₹)">
               <Input type="number" min="0" step="0.01" inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} />
@@ -213,6 +282,9 @@ export default function ProductsPage() {
                   <option key={value} value={value}>{statusLabel(value)}</option>
                 ))}
               </Select>
+            </Field>
+            <Field label="Print description">
+              <Textarea maxLength={1000} value={printDescription} onChange={(event) => setPrintDescription(event.target.value)} />
             </Field>
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             <Button type="submit" loading={save.isPending}>Save changes</Button>
