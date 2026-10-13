@@ -415,7 +415,7 @@ async function main() {
     ),
   );
 
-  await Meta.insertMany(meta.map((m) => ({ ...m, salesCount: faker.number.int({ min: 0, max: 40 }) })));
+  await Meta.insertMany(meta.map((m) => ({ ...m, itemCode: `web:${m.sku}`, salesCount: faker.number.int({ min: 0, max: 40 }) })));
 
   await Settings.create({
     key: "default",
@@ -443,11 +443,11 @@ async function main() {
   await Menu.insertMany(makeMenu(categoryDocs, categoryIds, products));
 
   await Banner.insertMany([
-    { placement: "hero", title: "The Kanchipuram Edit", subtitle: "Temple borders, korvai weaves, twelve new colours for the wedding season.", ctaLabel: "Shop Kanchipuram", ctaHref: "/collections/sarees?fabric=Kanchipuram%20Silk", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 0 },
-    { placement: "hero", title: "Yanai Motif Sarees", subtitle: "The elephant, woven the way Kanchi has always woven it.", ctaLabel: "See the collection", ctaHref: "/collections/yanai-motif-sarees", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 1 },
-    { placement: "hero", title: "Everyday Handlooms", subtitle: "Linen, Chanderi and cotton — under ₹5,000.", ctaLabel: "Shop under ₹5,000", ctaHref: "/collections/under-5000", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 2 },
-    { placement: "lifestyle", title: "Bridal Trousseau", subtitle: "Book a private viewing at Bangalore Urban.", ctaLabel: "Plan a visit", ctaHref: "/store-locator", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 0 },
-    { placement: "lifestyle", title: "Festive Banarasi", subtitle: "Kadwa and cutwork weaves in jewel tones.", ctaLabel: "Shop Banarasi", ctaHref: "/collections/sarees?fabric=Banarasi%20Silk", image: { desktop: "", alt: "Coming Soon" }, sortOrder: 1 },
+    { placement: "hero", title: "The Kanchipuram Edit", subtitle: "Temple borders, korvai weaves, twelve new colours for the wedding season.", ctaLabel: "Shop Kanchipuram", ctaHref: "/collections/sarees?fabric=Kanchipuram%20Silk", image: { desktop: "/hero-red-silk.png", alt: "Red silk saree" }, sortOrder: 0 },
+    { placement: "hero", title: "Yanai Motif Sarees", subtitle: "The elephant, woven the way Kanchi has always woven it.", ctaLabel: "See the collection", ctaHref: "/collections/yanai-motif-sarees", image: { desktop: "/hero-sarees-courtyard.png", alt: "Traditional sarees" }, sortOrder: 1 },
+    { placement: "hero", title: "Everyday Handlooms", subtitle: "Linen, Chanderi and cotton — under ₹5,000.", ctaLabel: "Shop under ₹5,000", ctaHref: "/collections/under-5000", image: { desktop: "/hero-pink-silk.png", alt: "Pink handwoven saree" }, sortOrder: 2 },
+    { placement: "lifestyle", title: "Bridal Trousseau", subtitle: "Book a private viewing at Bangalore Urban.", ctaLabel: "Plan a visit", ctaHref: "/store-locator", image: { desktop: "/curated-saree-black-floral.webp", alt: "Bridal saree" }, sortOrder: 0 },
+    { placement: "lifestyle", title: "Festive Banarasi", subtitle: "Kadwa and cutwork weaves in jewel tones.", ctaLabel: "Shop Banarasi", ctaHref: "/collections/sarees?fabric=Banarasi%20Silk", image: { desktop: "/curated-saree-orange-classic.webp", alt: "Festive Banarasi saree" }, sortOrder: 1 },
   ]);
 
   const featuredSkus = meta.filter((m) => m.isFeatured).slice(0, 12).map((m) => m.sku);

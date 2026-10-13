@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseBarcodeListParams } from "@/lib/api/query";
+import { applyPrintDescriptionOverrides } from "@/lib/barcode-image-series";
 import { CODE128_PATTERNS, encodeCode128B } from "@/lib/barcode/code128";
 import { isAllowedImageUrl, normalizeImageRef, presignS3Get, resolveRecordImage } from "@/lib/erp-images";
 import { BARCODE_JOINED, barcodeProductToProduct, mapBarcodeLabel } from "@/lib/erp-mapping";
@@ -65,7 +66,7 @@ describe("mapBarcodeLabel", () => {
   it("omits values that only repeat other fields or are empty", () => {
     const p = mapBarcodeLabel(label);
     expect(p.oldBarcode).toBeUndefined(); // same as barcode
-    expect(p.printDescription).toBeUndefined(); // same as name
+    expect(p.printDescription).toBe("handloom multi colour jari checks");
     expect(p.offerPrice).toBeUndefined(); // ""
     expect("image" in p).toBe(false); // images are resolved by the repository
   });
@@ -82,6 +83,15 @@ describe("mapBarcodeLabel", () => {
 
   it("rejects a record without a barcode instead of inventing one", () => {
     expect(() => mapBarcodeLabel({ _id: "x", itemCode: "A" })).toThrow(/barcodeNo/);
+  });
+});
+
+describe("applyPrintDescriptionOverrides", () => {
+  it("uses the website print description override by barcode", () => {
+    const product = mapBarcodeLabel(label);
+    const [updated] = applyPrintDescriptionOverrides([product], new Map([[product.barcode, "Admin print description"]]));
+    expect(updated.printDescription).toBe("Admin print description");
+    expect(product.printDescription).toBe("handloom multi colour jari checks");
   });
 });
 

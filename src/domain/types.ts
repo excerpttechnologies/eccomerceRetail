@@ -235,7 +235,7 @@ export interface BarcodeProduct {
   oldBarcode?: string;
   name: string;
   itemName?: string;
-  /** Label print text, only when it differs from `name`. */
+  /** Label print text from RetailERP or the website override. */
   printDescription?: string;
   group?: string;
   groupId?: string;
@@ -271,6 +271,8 @@ export interface BarcodeListParams {
   /** Internal storefront filters for the combined ERP clothing catalogue. */
   groupIds?: string[];
   businessIds?: string[];
+  /** Internal storefront filter that excludes unavailable ERP labels. */
+  availableOnly?: boolean;
   /** Internal storefront override to allow ERP image checks to finish before render. */
   imageCheckDeadlineMs?: number;
   status?: string;

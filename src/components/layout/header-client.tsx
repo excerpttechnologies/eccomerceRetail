@@ -49,10 +49,10 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
     <>
       <header className={cn("sticky z-50 border-b border-line bg-ivory/95 backdrop-blur transition-shadow", scrolled && "shadow-[0_2px_20px_-12px_rgba(0,0,0,0.35)]")} style={{ top: "env(safe-area-inset-top, 0px)" }}>
         {/* utility bar */}
-        <div className="hidden border-b border-line/70 text-[11px] uppercase tracking-[0.18em] text-muted md:block">
-          <div className="mx-auto flex h-8 max-w-site items-center justify-between px-6">
+        <div className="border-b border-line/70 text-[11px] uppercase tracking-[0.18em] text-muted">
+          <div className="mx-auto flex h-8 max-w-site items-center justify-start px-6 md:justify-between">
             <p className="font-heading text-sm normal-case italic tracking-normal text-gold">{tagline}</p>
-            <div className="flex items-center gap-5">
+            <div className="hidden items-center gap-5 md:flex">
               <label className="flex items-center gap-1">
                 <span>Store</span>
                 <select value={ui.storeId ?? ""} onChange={(e) => ui.setStoreId(e.target.value || undefined)} className="bg-transparent text-olive focus:outline-none">
@@ -77,8 +77,8 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
         </div>
 
         {/* main bar */}
-        <div className="mx-auto flex h-16 max-w-site items-center gap-4 px-4 sm:px-6 md:h-[76px]">
-          <button className="rounded-full p-2 hover:bg-olive/10 lg:hidden" aria-label="Menu" onClick={() => ui.setMenuOpen(true)}>
+        <div className="relative mx-auto flex h-16 max-w-site items-center gap-4 px-4 sm:px-6 md:h-[76px]">
+          <button className="rounded-full p-1.5 hover:bg-olive/10 sm:p-2 lg:hidden" aria-label="Menu" onClick={() => ui.setMenuOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1 lg:flex-none">{logo}</div>
@@ -102,17 +102,17 @@ export function HeaderClient({ menu, stores, currencies, tagline, logo }: Props)
           </nav>
 
           <div className="flex items-center gap-1">
-            <button className="rounded-full p-2 hover:bg-olive/10" aria-label="Search" onClick={() => ui.setSearchOpen(true)}>
+            <button className="rounded-full p-1.5 hover:bg-olive/10 sm:p-2" aria-label="Search" onClick={() => ui.setSearchOpen(true)}>
               <Search className="h-5 w-5" />
             </button>
             <Link href="/account" className="hidden rounded-full p-2 hover:bg-olive/10 sm:block" aria-label="Account">
               <User className="h-5 w-5" />
             </Link>
-            <Link href="/wishlist" className="relative rounded-full p-2 hover:bg-olive/10" aria-label="Wishlist">
+            <Link href="/wishlist" className="relative rounded-full p-1.5 hover:bg-olive/10 sm:p-2" aria-label="Wishlist">
               <Heart className="h-5 w-5" />
               {skus.length > 0 && <Count n={skus.length} />}
             </Link>
-            <button className="relative rounded-full p-2 hover:bg-olive/10" aria-label="Cart" onClick={() => ui.setCartOpen(true)}>
+            <button className="relative rounded-full p-1.5 hover:bg-olive/10 sm:p-2" aria-label="Cart" onClick={() => ui.setCartOpen(true)}>
               <ShoppingBag className="h-5 w-5" />
               {count > 0 && <Count n={count} />}
             </button>

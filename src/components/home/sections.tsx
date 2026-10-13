@@ -108,7 +108,7 @@ export function ErpImageGallery({ title, items }: { title: string; items: Barcod
               {item.image && (
                 <Image
                   src={item.image}
-                  alt={item.itemName || item.name}
+                  alt={getErpProductDescription(item)}
                   fill
                   unoptimized
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
@@ -117,8 +117,7 @@ export function ErpImageGallery({ title, items }: { title: string; items: Barcod
               )}
             </div>
             <div className="space-y-1 p-3">
-              <h3 className="text-sm font-medium text-ink">{item.itemName || item.name}</h3>
-              <p className="text-xs text-muted">{getErpProductDescription(item)}</p>
+              {item.printDescription && <p className="text-sm text-ink">{item.printDescription}</p>}
             </div>
           </article>
         ))}
@@ -128,22 +127,7 @@ export function ErpImageGallery({ title, items }: { title: string; items: Barcod
 }
 
 function getErpProductDescription(item: BarcodeProduct): string {
-  const identifiers = new Set(
-    [item.barcode, item.itemCode, item.oldBarcode]
-      .filter((value): value is string => Boolean(value))
-      .map((value) => value.trim().toLowerCase()),
-  );
-  const description = [item.printDescription, item.name, item.itemName]
-    .map((value) => value?.trim())
-    .find((value) => Boolean(
-      value &&
-      value.length >= 3 &&
-      !identifiers.has(value.toLowerCase()) &&
-      !/^[A-Z0-9_-]+$/.test(value),
-    ));
-
-  if (!description) return `Product details not listed in ERP`;
-  return description.charAt(0).toUpperCase() + description.slice(1);
+  return item.printDescription?.trim() ?? "";
 }
 
 export function ChipStrip({ title, subtitle, items }: { title?: string | null; subtitle?: string | null; items: { label: string; href: string; image?: string }[] }) {

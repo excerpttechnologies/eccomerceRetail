@@ -263,7 +263,7 @@ export function mapBarcodeLabel(raw: any): BarcodeProduct {
     oldBarcode: oldBarcode && !same(oldBarcode, barcode) ? oldBarcode : undefined,
     name,
     itemName: itemName && !same(itemName, name) ? itemName : undefined,
-    printDescription: printDescription && !same(printDescription, name) ? printDescription : undefined,
+    printDescription: printDescription || undefined,
     group: toStr(raw?.[BARCODE_JOINED.groupName]),
     groupId: toStr(g("groupId")),
     business: toStr(raw?.[BARCODE_JOINED.businessName]),

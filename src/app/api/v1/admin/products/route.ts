@@ -52,6 +52,11 @@ export const GET = handler(async (req: NextRequest) => {
         barcodeName: m.barcodeName,
         productType: m.productType,
         itemType: m.itemType,
+        weaveDescription: m.weaveDescription,
+        fabricDescription: m.fabricDescription,
+        craftDescription: m.craftDescription,
+        occasionDescription: m.occasionDescription,
+        colorDescription: m.colorDescription,
         groupNameOverride: m.groupNameOverride,
         supplierCodeOverride: m.supplierCodeOverride,
         supplierNameOverride: m.supplierNameOverride,
@@ -84,6 +89,11 @@ export const PATCH = handler(async (req: NextRequest) => {
     barcodeName: z.string().trim().max(160).nullable().optional(),
     productType: z.enum(["SAREES", "FABRICS", "PLAIN FABRICS", "DUPATTA", "NEW ARRIVALS"]).nullable().optional(),
     itemType: z.enum(["By Weave", "By Fabric", "By Craft", "By Occasion"]).nullable().optional(),
+    weaveDescription: z.string().trim().max(1000).nullable().optional(),
+    fabricDescription: z.string().trim().max(1000).nullable().optional(),
+    craftDescription: z.string().trim().max(1000).nullable().optional(),
+    occasionDescription: z.string().trim().max(1000).nullable().optional(),
+    colorDescription: z.string().trim().max(1000).nullable().optional(),
     groupNameOverride: z.string().trim().max(160).nullable().optional(),
     supplierCodeOverride: z.string().trim().max(120).nullable().optional(),
     supplierNameOverride: z.string().trim().max(160).nullable().optional(),
@@ -95,8 +105,8 @@ export const PATCH = handler(async (req: NextRequest) => {
     isFeatured: z.boolean().optional(),
     extraImages: z.array(z.string()).optional(),
     webTags: z.array(z.string()).optional(),
-  }).refine(({ slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags }) =>
-    [slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags].some((value) => value !== undefined)));
+  }).refine(({ slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, weaveDescription, fabricDescription, craftDescription, occasionDescription, colorDescription, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags }) =>
+    [slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, weaveDescription, fabricDescription, craftDescription, occasionDescription, colorDescription, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags].some((value) => value !== undefined)));
   if (!b.ok) return b.res;
   const { sku, ...patch } = b.data;
   let product;
@@ -111,7 +121,7 @@ export const PATCH = handler(async (req: NextRequest) => {
   const before = await M.findOne({ sku }).lean();
   const set: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
-  for (const key of ["itemName", "barcodeName", "productType", "itemType", "groupNameOverride", "supplierCodeOverride", "supplierNameOverride", "printDescriptionOverride", "ecommOffPercent", "barcodePriceOverride", "barcodeQtyOverride", "barcodeStatusOverride"] as const) {
+  for (const key of ["itemName", "barcodeName", "productType", "itemType", "weaveDescription", "fabricDescription", "craftDescription", "occasionDescription", "colorDescription", "groupNameOverride", "supplierCodeOverride", "supplierNameOverride", "printDescriptionOverride", "ecommOffPercent", "barcodePriceOverride", "barcodeQtyOverride", "barcodeStatusOverride"] as const) {
     const value = patch[key];
     if (value === undefined) continue;
     if (value !== null && value !== "") set[key] = value;

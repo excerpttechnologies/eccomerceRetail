@@ -119,6 +119,16 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
   private match(params: BarcodeListParams): FilterQuery<AnyDoc> {
     const and: FilterQuery<AnyDoc>[] = [];
     if (params.barcodes?.length) and.push({ [B.barcode]: { $in: params.barcodes } });
+    if (params.availableOnly) {
+      const qty = {
+        $ifNull: [
+          { $convert: { input: `$${B.qty}`, to: "double", onError: null, onNull: null } },
+          { $convert: { input: `$${B.qtyText}`, to: "double", onError: null, onNull: null } },
+        ],
+      };
+      and.push({ [B.status]: "IN_STOCK" });
+      and.push({ $expr: { $or: [{ $eq: [qty, null] }, { $gt: [qty, 0] }] } });
+    }
     if (params.seriesPrefix?.trim()) {
       and.push({
         [B.barcode]: new RegExp(`^${escapeRegex(params.seriesPrefix.trim())}`, "i"),

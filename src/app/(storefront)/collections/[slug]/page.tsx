@@ -58,6 +58,8 @@ export default async function CollectionPage({ params, searchParams }: { params:
   const [{ slug }, sp] = await Promise.all([params, searchParams]);
   const erpGroup = erpGroupForSlug(slug);
   if (erpGroup) {
+    const selectedBarcode = firstParam(sp.barcode)?.trim();
+    const detailView = Boolean(selectedBarcode);
     const rawPage = Array.isArray(sp.page) ? sp.page[0] : sp.page;
     const parsedPage = rawPage && /^\d+$/.test(rawPage) ? Number(rawPage) : 1;
     const page = Number.isSafeInteger(parsedPage) ? Math.max(1, parsedPage) : 1;
@@ -67,32 +69,29 @@ export default async function CollectionPage({ params, searchParams }: { params:
       status: firstParam(sp.status),
       uomType: firstParam(sp.uomType),
       q: firstParam(sp.q),
+      ...(selectedBarcode ? { barcode: selectedBarcode } : {}),
     };
     const [result, facets] = await Promise.all([
       getBarcodeImageCatalog(erpGroup, page, filters),
-      getBarcodeImageFilterOptions(erpGroup),
+      detailView ? Promise.resolve(null) : getBarcodeImageFilterOptions(erpGroup),
     ]);
     const title = erpGroup === "sarees" ? "Sarees" : "Fabrics";
     const pageCount = Math.max(result.pages, 1);
     return (
       <div className="mx-auto max-w-site px-4 py-6 sm:px-6">
-        <Breadcrumbs items={[{ label: title }]} />
+        <Breadcrumbs items={detailView ? [{ label: title, href: `/collections/${slug}` }, { label: selectedBarcode! }] : [{ label: title }]} />
         <div className="mt-4">
-          <h1 className="we-rule text-4xl">All {title}</h1>
-          <p className="mt-3 max-w-2xl text-sm text-muted">Images and item descriptions are loaded from RetailERP.</p>
+          <h1 className="we-rule text-4xl">{detailView ? title : `All ${title}`}</h1>
+          {!detailView && <p className="mt-3 max-w-2xl text-sm text-muted">Images and item descriptions are loaded from RetailERP.</p>}
         </div>
-        <Suspense><BarcodeCollectionFilters facets={facets} /></Suspense>
+        {!detailView && <Suspense><BarcodeCollectionFilters facets={facets!} /></Suspense>}
         {result.items.length ? (
-          <BarcodeProductGrid items={result.items} />
+          <BarcodeProductGrid items={result.items} collectionSlug={slug === "fabrics" && !detailView ? slug : undefined} detailView={detailView} />
         ) : (
           <p className="py-12 text-center text-sm text-muted">No ERP images are available on this page.</p>
         )}
-        <p className="text-center text-xs uppercase tracking-widest text-muted">
-          Showing {result.items.length} ERP images · Page {result.page} of {pageCount}
-        </p>
-        <Suspense>
-          <Pagination page={result.page} pages={result.pages} />
-        </Suspense>
+        {!detailView && <p className="text-center text-xs uppercase tracking-widest text-muted">Showing {result.items.length} ERP images · Page {result.page} of {pageCount}</p>}
+        {!detailView && <Suspense><Pagination page={result.page} pages={result.pages} /></Suspense>}
       </div>
     );
   }
