@@ -11,7 +11,7 @@ import { BarcodeCollectionFilters } from "@/components/listing/barcode-collectio
 import { BarcodeProductGrid } from "@/components/product/barcode-product-grid";
 import { Pagination } from "@/components/listing/toolbar";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { getBarcodeImageCatalog, getBarcodeImageFilterOptions, getBarcodeImageSeries, type BarcodeSeriesGroup } from "@/lib/barcode-image-series";
+import { ERP_CATEGORY_TITLES, getBarcodeImageCatalog, getBarcodeImageFilterOptions, getBarcodeImageSeries, type StorefrontCategoryGroup } from "@/lib/barcode-image-series";
 
 type SP = Record<string, string | string[] | undefined>;
 const toSearchParams = (sp: SP) => {
@@ -21,9 +21,8 @@ const toSearchParams = (sp: SP) => {
 };
 const firstParam = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
-function erpGroupForSlug(slug: string): BarcodeSeriesGroup | null {
-  if (slug === "sarees") return "sarees";
-  if (slug === "fabrics") return "fabrics";
+function erpGroupForSlug(slug: string): StorefrontCategoryGroup | null {
+  if (slug === "sarees" || slug === "fabrics" || slug === "plain-fabrics" || slug === "dupatta") return slug;
   return null;
 }
 
@@ -44,7 +43,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const erpGroup = erpGroupForSlug(slug);
   if (erpGroup) {
-    const title = erpGroup === "sarees" ? "Sarees" : "Fabrics";
+    const title = ERP_CATEGORY_TITLES[erpGroup];
     return { title, description: `Browse ${title.toLowerCase()} with images from RetailERP.` };
   }
   const r = await resolve(slug);
@@ -71,26 +70,39 @@ export default async function CollectionPage({ params, searchParams }: { params:
       q: firstParam(sp.q),
       ...(selectedBarcode ? { barcode: selectedBarcode } : {}),
     };
-    const [result, facets] = await Promise.all([
-      getBarcodeImageCatalog(erpGroup, page, filters),
-      detailView ? Promise.resolve(null) : getBarcodeImageFilterOptions(erpGroup),
-    ]);
-    const title = erpGroup === "sarees" ? "Sarees" : "Fabrics";
+    const title = ERP_CATEGORY_TITLES[erpGroup];
+    let result;
+    let facets;
+    try {
+      [result, facets] = await Promise.all([
+        getBarcodeImageCatalog(erpGroup, page, filters),
+        detailView ? Promise.resolve(null) : getBarcodeImageFilterOptions(erpGroup),
+      ]);
+    } catch {
+      return (
+        <div className="mx-auto max-w-site px-4 py-6 sm:px-6">
+          <Breadcrumbs items={[{ label: title }]} />
+          <h1 className="we-rule mt-4 text-4xl">All {title}</h1>
+          <p role="alert" className="mt-6 text-sm text-muted">We couldn&apos;t load this category. Please try again.</p>
+          <Link href={`/collections/${slug}`} className="mt-4 inline-flex h-10 items-center border border-line px-5 text-xs uppercase tracking-widest hover:border-olive">Try again</Link>
+        </div>
+      );
+    }
     const pageCount = Math.max(result.pages, 1);
     return (
       <div className="mx-auto max-w-site px-4 py-6 sm:px-6">
         <Breadcrumbs items={detailView ? [{ label: title, href: `/collections/${slug}` }, { label: selectedBarcode! }] : [{ label: title }]} />
         <div className="mt-4">
           <h1 className="we-rule text-4xl">{detailView ? title : `All ${title}`}</h1>
-          {!detailView && <p className="mt-3 max-w-2xl text-sm text-muted">Images and item descriptions are loaded from RetailERP.</p>}
+          {!detailView && <p className="mt-3 max-w-2xl text-sm text-muted">Products, images and item descriptions are loaded from RetailERP.</p>}
         </div>
         {!detailView && <Suspense><BarcodeCollectionFilters facets={facets!} /></Suspense>}
         {result.items.length ? (
-          <BarcodeProductGrid items={result.items} collectionSlug={slug === "fabrics" && !detailView ? slug : undefined} detailView={detailView} />
+          <BarcodeProductGrid items={result.items} collectionSlug={!detailView ? slug : undefined} detailView={detailView} />
         ) : (
-          <p className="py-12 text-center text-sm text-muted">No ERP images are available on this page.</p>
+          <p className="py-12 text-center text-sm text-muted">No products are available in this category.</p>
         )}
-        {!detailView && <p className="text-center text-xs uppercase tracking-widest text-muted">Showing {result.items.length} ERP images · Page {result.page} of {pageCount}</p>}
+        {!detailView && <p className="text-center text-xs uppercase tracking-widest text-muted">Showing {result.items.length} ERP products · Page {result.page} of {pageCount}</p>}
         {!detailView && <Suspense><Pagination page={result.page} pages={result.pages} /></Suspense>}
       </div>
     );

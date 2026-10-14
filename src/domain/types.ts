@@ -267,6 +267,8 @@ export interface BarcodeProduct {
 export interface BarcodeListParams {
   q?: string;
   barcodes?: string[];
+  /** Internal storefront filter resolved from modern ERP items by exact barcodeLabel ObjectId. */
+  labelIds?: string[];
   seriesPrefix?: string;
   /** Internal storefront filters for the combined ERP clothing catalogue. */
   groupIds?: string[];

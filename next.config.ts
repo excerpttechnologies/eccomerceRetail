@@ -27,9 +27,14 @@ function erpImagePatterns(): RemotePattern[] {
 }
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: process.cwd(),
   serverExternalPackages: ["mongoose"],
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "picsum.photos" }, ...erpImagePatterns()],
+    remotePatterns: [
+      { protocol: "https", hostname: "picsum.photos" },
+      { protocol: "https", hostname: "wovenessence.in", pathname: "/images/**" },
+      ...erpImagePatterns(),
+    ],
   },
 };
 

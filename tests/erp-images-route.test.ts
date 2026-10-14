@@ -9,7 +9,7 @@ const req = (qs = "") => ({ nextUrl: new URL(`http://localhost/api/v1/products/e
 describe("GET /api/v1/products/erp-images", () => {
   beforeEach(() => getBarcodeImageSeries.mockReset());
 
-  it.each(["sarees", "fabrics"] as const)("returns resolved ERP image series for %s", async (group) => {
+  it.each(["sarees", "fabrics", "plain-fabrics", "dupatta"] as const)("returns resolved ERP image series for %s", async (group) => {
     const series = [{ title: `${group} - 8A Series`, items: [{ barcode: "8A001", image: "https://images.example/item.jpg" }] }];
     getBarcodeImageSeries.mockResolvedValue(series);
 
@@ -22,7 +22,7 @@ describe("GET /api/v1/products/erp-images", () => {
   });
 
   it("rejects missing or unsupported groups without querying RetailERP", async () => {
-    for (const query of ["", "?group=other"]) {
+    for (const query of ["", "?group=other", "?group=plain_fabric"]) {
       const response = await GET(req(query));
       expect(response.status).toBe(400);
     }

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Connection, FilterQuery, Model, PipelineStage } from "mongoose";
 import { env } from "@/lib/env";
+import { toObjectIdOrString } from "@/lib/db";
 import {
   BARCODE_JOINED,
   BARCODE_LABEL_FIELDS as B,
@@ -118,6 +119,7 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
 
   private match(params: BarcodeListParams): FilterQuery<AnyDoc> {
     const and: FilterQuery<AnyDoc>[] = [];
+    if (params.labelIds?.length) and.push({ _id: { $in: params.labelIds.map(toObjectIdOrString) } });
     if (params.barcodes?.length) and.push({ [B.barcode]: { $in: params.barcodes } });
     if (params.availableOnly) {
       const qty = {
@@ -203,6 +205,19 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
       if (n && n > 1) p.barcodeLabelCount = n;
     }
     return { items, total, page, limit, pages: Math.max(1, Math.ceil(total / limit)), skipped };
+  }
+
+  async getLabelIdsForItemGroups(groupIds: string[]): Promise<string[]> {
+    if (!groupIds.length) return [];
+    const connection = await this.conn();
+    const rows = await connection.db!.collection("items").aggregate<{ _id: string }>([
+      { $match: { group: { $in: groupIds.map(toObjectIdOrString) }, "barcodeManagement.sourceBarcodeLabel": { $type: "objectId" } } },
+      { $group: { _id: "$barcodeManagement.sourceBarcodeLabel" } },
+      { $lookup: { from: ERP_BARCODE_COLLECTIONS.labels, localField: "_id", foreignField: "_id", as: "label" } },
+      { $match: { "label.0": { $exists: true } } },
+      { $project: { _id: { $toString: "$_id" } } },
+    ]).toArray();
+    return rows.map((row) => row._id);
   }
 
   /**

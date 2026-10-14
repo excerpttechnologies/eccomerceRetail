@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseBarcodeListParams } from "@/lib/api/query";
-import { applyPrintDescriptionOverrides } from "@/lib/barcode-image-series";
+import { applyPrintDescriptionOverrides, ERP_CATEGORY_GROUP_IDS } from "@/lib/barcode-image-series";
 import { CODE128_PATTERNS, encodeCode128B } from "@/lib/barcode/code128";
 import { isAllowedImageUrl, normalizeImageRef, presignS3Get, resolveRecordImage } from "@/lib/erp-images";
 import { BARCODE_JOINED, barcodeProductToProduct, mapBarcodeLabel } from "@/lib/erp-mapping";
@@ -10,6 +10,19 @@ import { BARCODE_JOINED, barcodeProductToProduct, mapBarcodeLabel } from "@/lib/
 const BASE = "https://wovenessence.etpl.ai";
 const SPACES = ["templeimg.blr1.digitaloceanspaces.com"];
 const PLACEHOLDER = `data:image/jpeg;base64,${readFileSync(path.join(__dirname, "fixtures/erp-placeholder.jpg.b64"), "utf8").trim()}`;
+
+describe("ERP storefront category groups", () => {
+  it("uses verified exact group IDs and keeps category scopes disjoint", () => {
+    expect(ERP_CATEGORY_GROUP_IDS).toEqual({
+      sarees: ["6a9905f8ee2f8f36193a0ce2"],
+      fabrics: ["6a9904d4ee2f8f36193a0a52"],
+      "plain-fabrics": ["6a990579ee2f8f36193a0c14"],
+      dupatta: ["6a990672ee2f8f36193a0db0"],
+    });
+    const allGroupIds = Object.values(ERP_CATEGORY_GROUP_IDS).flat();
+    expect(new Set(allGroupIds).size).toBe(allGroupIds.length);
+  });
+});
 
 /** Shape of a real grooretailerp1.barcodeLabel document (values trimmed). */
 const label = {

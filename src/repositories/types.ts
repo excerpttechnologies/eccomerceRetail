@@ -60,6 +60,8 @@ export interface MasterDataSource {
 /** RetailERP barcodeLabel — backs the admin Products page. Always the ERP database, read-only. */
 export interface BarcodeLabelRepository {
   list(params: BarcodeListParams): Promise<Paginated<BarcodeProduct> & { skipped: number }>;
+  /** Resolve label document IDs through modern ERP Item group assignments. */
+  getLabelIdsForItemGroups(groupIds: string[]): Promise<string[]>;
   /** Filter options with live counts (status, product group, business, UOM type). */
   facets(params?: BarcodeListParams): Promise<BarcodeFacets>;
   /** Newest label carrying this barcode (images not resolved). */

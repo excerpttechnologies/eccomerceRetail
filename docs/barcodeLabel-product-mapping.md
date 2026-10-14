@@ -91,6 +91,28 @@ otherwise proxy any bucket.
 | `groupId` like `mtr-6`, `pc-86` | 722 labels, no `productgroup` document | no group shown; not offered as a filter |
 | `businessId` `6aabd7c858bc2f2790eba600` | 40 labels, not in `business` | filter label "Unlisted business ·eba600" |
 
+## Storefront category groups
+
+Verified read-only from the modern `items`, `groups`, `subgroups`, and `barcodeLabel` collections
+on 2026-10-14. `items.group` is an ObjectId reference to `groups._id`; `items.subgroup` references
+`subgroups._id`. The reliable bridge to the admin product record is
+`items.barcodeManagement.sourceBarcodeLabel` (ObjectId) → `barcodeLabel._id`. Category results
+use that bridge, then render the existing barcode-label description, price, availability, and
+image. Item Code or barcode text is not used as a fallback because it is not unique.
+
+| Storefront category | Verified ERP `groups._id` | Linked barcode labels |
+| --- | --- | ---: |
+| Sarees | `6a9905f8ee2f8f36193a0ce2` | 88 |
+| Fabrics | `6a9904d4ee2f8f36193a0a52` | 47 |
+| Plain Fabrics | `6a990579ee2f8f36193a0c14` | 65 |
+| Dupatta | `6a990672ee2f8f36193a0db0` | 20 |
+
+These are exact ERP group IDs with direct barcode-label references in the inspected branch; other
+same-named groups are excluded. Fabrics and Plain Fabrics are separate groups. Some classified ERP
+items have no `sourceBarcodeLabel` reference and are excluded rather than guessed into the public
+catalogue. Category listings retain referenced labels when an image is missing or unavailable, so
+the storefront's existing image fallback is used. No ERP or ecommerce records are written.
+
 ## Queries
 
 - **List:** one aggregation —
