@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { after } from "next/server";
 import { z } from "zod";
 import { parseBody } from "@/lib/api/body";
 import { fail, handler, ok } from "@/lib/api/response";
@@ -6,6 +7,7 @@ import { getCustomerSession } from "@/lib/auth";
 import { clearCart, getCartToken, getCartView } from "@/lib/cart-server";
 import { getWebConnection } from "@/lib/db";
 import { createGatewayOrder, verifyRazorpaySignature } from "@/lib/payments";
+import { deliverNotification, enqueueOrderNotification } from "@/lib/whatsapp/notifications";
 import { CouponModel } from "@/models/web/commerce.models";
 import { getCustomers, getOrders, getSite } from "@/repositories";
 
@@ -94,7 +96,27 @@ export const POST = handler(async (req: NextRequest) => {
   });
 
   if (cart.couponCode) await CouponModel(await getWebConnection()).updateOne({ code: cart.couponCode }, { $inc: { usedCount: 1 } });
-  if (b.data.paymentMode === "RAZORPAY") await getOrders().updateStatus(order.orderNo, "Confirmed", `Paid via Razorpay ${b.data.payment?.paymentId}`, "system");
+
+  // Durable outbox row is written before the response; the actual Meta call runs in
+  // `after()` so checkout latency is never tied to WhatsApp availability.
+  const notificationIds: string[] = [];
+  if (b.data.paymentMode === "COD") {
+    // COD acceptance is the confirmation point in this application.
+    const id = await enqueueOrderNotification(order, "order_confirmation");
+    if (id) notificationIds.push(id);
+  } else {
+    const confirmed = await getOrders().updateStatus(order.orderNo, "Confirmed", `Paid via Razorpay ${b.data.payment?.paymentId}`, "system");
+    if (confirmed) {
+      const id = await enqueueOrderNotification(confirmed, "order_confirmation");
+      if (id) notificationIds.push(id);
+    }
+  }
+  if (notificationIds.length) {
+    after(async () => {
+      await Promise.all(notificationIds.map((id) => deliverNotification(id)));
+    });
+  }
+
   await clearCart(token);
 
   return ok({ step: "done", orderNo: order.orderNo, netAmount: order.netAmount }, undefined, { status: 201 });

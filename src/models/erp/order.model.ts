@@ -37,6 +37,8 @@ export const OrderSchema = new Schema(
       [O.orderStatus]: { type: String, default: "Placed", index: true },
       [O.shippingAddress]: AddressSchema,
       [O.awbNo]: String,
+      /** Website-only: courier partner entered by admin for shipping notifications. */
+      courierName: String,
       [O.storeId]: Schema.Types.Mixed,
       [O.couponCode]: String,
       [O.createdAt]: { type: Date, default: Date.now, index: true },

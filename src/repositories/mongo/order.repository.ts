@@ -109,4 +109,11 @@ export class MongoOrderRepository implements OrderRepository {
       .lean<AnyDoc>();
     return doc ? mapOrder(doc) : null;
   }
+
+  async setCourierName(orderNo: string, courierName: string): Promise<Order | null> {
+    const doc = await (await this.M())
+      .findOneAndUpdate({ [O.orderNo]: orderNo }, { $set: { courierName } }, { new: true })
+      .lean<AnyDoc>();
+    return doc ? mapOrder(doc) : null;
+  }
 }

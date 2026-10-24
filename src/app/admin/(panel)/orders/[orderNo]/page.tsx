@@ -21,10 +21,11 @@ export default function OrderDetail() {
   const [status, setStatus] = useState("");
   const [note, setNote] = useState("");
   const [awb, setAwb] = useState("");
+  const [courier, setCourier] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const update = useMutation({
-    mutationFn: () => api(`/api/v1/admin/orders/${orderNo}`, { method: "PATCH", json: { status: status || undefined, note: note || undefined, awbNo: awb || undefined } }),
-    onSuccess: () => { setStatus(""); setNote(""); setAwb(""); setMsg("Updated"); qc.invalidateQueries({ queryKey: ["admin", "order", orderNo] }); qc.invalidateQueries({ queryKey: ["admin", "orders"] }); },
+    mutationFn: () => api(`/api/v1/admin/orders/${orderNo}`, { method: "PATCH", json: { status: status || undefined, note: note || undefined, awbNo: awb || undefined, courierName: courier || undefined } }),
+    onSuccess: () => { setStatus(""); setNote(""); setAwb(""); setCourier(""); setMsg("Updated"); qc.invalidateQueries({ queryKey: ["admin", "order", orderNo] }); qc.invalidateQueries({ queryKey: ["admin", "orders"] }); },
     onError: (e) => setMsg((e as Error).message),
   });
   if (error) return <p className="text-sm text-red-700">{(error as Error).message}</p>;
@@ -69,14 +70,15 @@ export default function OrderDetail() {
             <p className="text-muted">{o.customer?.mobile ?? a.phone}{o.customer?.email ? ` · ${o.customer.email}` : ""}</p>
             <p className="mt-3 mb-1 text-[10px] uppercase tracking-widest text-muted">Ship to</p>
             <p>{a.line1}{a.line2 ? `, ${a.line2}` : ""}<br />{a.city}, {a.state} {a.pincode}<br />{a.phone}</p>
-            {o.awbNo && <p className="mt-3 text-xs">AWB: <b>{o.awbNo}</b></p>}
+            {o.awbNo && <p className="mt-3 text-xs">AWB: <b>{o.awbNo}</b>{o.courierName ? ` · ${o.courierName}` : ""}</p>}
           </div>
           <form className="space-y-3 rounded-sm border border-line p-4" onSubmit={(e) => { e.preventDefault(); update.mutate(); }}>
             <p className="text-[10px] uppercase tracking-widest text-muted">Update</p>
             <Field label="Move to"><Select value={status} onChange={(e) => setStatus(e.target.value)}><option value="">— keep {o.orderStatus} —</option>{o.allowedTransitions.map((s) => <option key={s}>{s}</option>)}</Select></Field>
             <Field label="AWB / tracking no"><Input value={awb} onChange={(e) => setAwb(e.target.value)} placeholder={o.awbNo ?? ""} /></Field>
+            <Field label="Courier name"><Input value={courier} onChange={(e) => setCourier(e.target.value)} placeholder={o.courierName ?? "e.g. Delhivery"} /></Field>
             <Field label="Note"><Input value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-            <Button type="submit" size="sm" loading={update.isPending} disabled={!status && !awb && !note}>Save</Button>
+            <Button type="submit" size="sm" loading={update.isPending} disabled={!status && !awb && !courier && !note}>Save</Button>
             {msg && <p className="text-xs text-muted">{msg}</p>}
           </form>
         </div>

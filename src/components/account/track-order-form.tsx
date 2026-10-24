@@ -8,19 +8,23 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { OrderTimeline, orderTone } from "@/components/account/order-status";
 
-export function TrackOrderForm({ initialOrderNo, initialPhone }: { initialOrderNo: string; initialPhone: string }) {
+export function TrackOrderForm({ initialOrderNo, initialPhone, initialToken }: { initialOrderNo: string; initialPhone: string; initialToken?: string }) {
   const [orderNo, setOrderNo] = useState(initialOrderNo);
   const [phone, setPhone] = useState(initialPhone);
   const lookup = useMutation({
-    mutationFn: async (values: { orderNo: string; phone: string }) => {
-      const qs = new URLSearchParams({ phone: values.phone });
+    mutationFn: async (values: { orderNo: string; phone: string; token?: string }) => {
+      const qs = new URLSearchParams();
+      if (values.token) qs.set("token", values.token);
+      else qs.set("phone", values.phone);
       return (await api<Order>(`/api/v1/orders/${encodeURIComponent(values.orderNo)}?${qs}`)).data;
     },
   });
+  const { mutate } = lookup;
 
   useEffect(() => {
-    if (initialOrderNo && initialPhone) lookup.mutate({ orderNo: initialOrderNo, phone: initialPhone });
-  }, [initialOrderNo, initialPhone, lookup.mutate]);
+    if (initialToken) mutate({ orderNo: initialOrderNo, phone: "", token: initialToken });
+    else if (initialOrderNo && initialPhone) mutate({ orderNo: initialOrderNo, phone: initialPhone });
+  }, [initialOrderNo, initialPhone, initialToken, mutate]);
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -30,14 +34,24 @@ export function TrackOrderForm({ initialOrderNo, initialPhone }: { initialOrderN
 
   return (
     <div>
-      <form onSubmit={submit} className="grid gap-4 rounded-sm border border-line bg-white/60 p-5 sm:grid-cols-2">
-        <Field label="Order number"><Input required value={orderNo} onChange={(event) => setOrderNo(event.target.value)} placeholder="e.g. WE-2026-0001" /></Field>
-        <Field label="Checkout phone number"><Input required type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Phone number used at checkout" /></Field>
-        <div className="sm:col-span-2">
-          <Button type="submit" loading={lookup.isPending}>Track order</Button>
+      {!initialToken && (
+        <form onSubmit={submit} className="grid gap-4 rounded-sm border border-line bg-white/60 p-5 sm:grid-cols-2">
+          <Field label="Order number"><Input required value={orderNo} onChange={(event) => setOrderNo(event.target.value)} placeholder="e.g. WE-2026-0001" /></Field>
+          <Field label="Checkout phone number"><Input required type="tel" inputMode="tel" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="Phone number used at checkout" /></Field>
+          <div className="sm:col-span-2">
+            <Button type="submit" loading={lookup.isPending}>Track order</Button>
+          </div>
+          {lookup.error && <p role="alert" className="text-sm text-red-700 sm:col-span-2">{(lookup.error as Error).message}</p>}
+        </form>
+      )}
+
+      {lookup.isPending && initialToken && <p className="text-sm text-muted">Loading your order…</p>}
+      {lookup.error && initialToken && (
+        <div className="rounded-sm border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p>This tracking link is invalid or has expired.</p>
+          <a href="/track-order" className="mt-2 inline-block underline underline-offset-2">Track with your order number and phone</a>
         </div>
-        {lookup.error && <p role="alert" className="text-sm text-red-700 sm:col-span-2">{(lookup.error as Error).message}</p>}
-      </form>
+      )}
 
       {order && <section aria-live="polite" className="mt-6 border-t border-line pt-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -49,7 +63,7 @@ export function TrackOrderForm({ initialOrderNo, initialPhone }: { initialOrderN
           <p><span className="text-muted">Placed:</span> {order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : "—"}</p>
           <p><span className="text-muted">Payment:</span> {order.paymentStatus} · {order.paymentMode}</p>
           <p><span className="text-muted">Delivering to:</span> {order.shippingAddress.city}</p>
-          {order.awbNo && <p><span className="text-muted">Tracking / AWB:</span> {order.awbNo}</p>}
+          {order.awbNo && <p><span className="text-muted">Tracking / AWB:</span> {order.awbNo}{order.courierName ? ` · ${order.courierName}` : ""}</p>}
         </div>
         <p className="mt-4 text-xs text-muted">{order.items.length} item(s) in this order.</p>
       </section>}

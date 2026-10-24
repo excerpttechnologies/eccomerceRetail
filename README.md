@@ -13,7 +13,8 @@ _Tagline: Tradition in Every Weave._
 | --- | --- | --- |
 | 1 | Data layer: ERP field mapping, repositories, mock/ERP adapters, seed, introspection | ✅ |
 | 2 | Storefront (all pages), REST API + OpenAPI, admin panel (RBAC), tests | ✅ |
-| 3 | Real RetailERP field names (`erp-introspect` output), live product images, SMS OTP, Razorpay keys, final logo | ⏳ needs your input |
+| 3 | Real RetailERP field names (`erp-introspect` output), live product images, Razorpay keys, final logo | ⏳ needs your input |
+| 4 | Meta WhatsApp Cloud API: OTP login, order/shipping/delivery messages, webhooks, admin diagnostics | 🟡 code complete, awaiting Meta credentials/templates/e2e |
 
 ## Quick start (mock data)
 
@@ -28,9 +29,13 @@ npm run dev                     # http://localhost:3000
 - **Admin**: http://localhost:3000/admin — `admin@wovenessence.in` / `Admin@123` (change it after first login)
 - **API docs**: http://localhost:3000/api/docs/ui (Swagger) · JSON at `/api/docs`
 - **Customer accounts**: customers sign up at `/register` (name, email, optional mobile, password) and log in
-  at `/login` with email + password. Credentials live in `customerAccounts`, apart from the ERP-shaped
-  customer record. The mobile OTP API (`/api/v1/auth/otp/*`) is still available but no longer on the login page;
-  its code is a stub printed to the server console.
+  at `/login` with email + password or—when configured—a WhatsApp OTP. Credentials live in `customerAccounts`,
+  apart from the ERP-shaped customer record. OTP login is delivered by WhatsApp; the legacy SMS channel is
+  disabled because no SMS provider is implemented. The OTP tab appears only when the WhatsApp credentials and
+  the approved authentication template are configured.
+- **WhatsApp**: see [docs/whatsapp-integration.md](docs/whatsapp-integration.md) for the Meta Cloud API
+  setup, exact template bodies/parameter order, webhook URL, admin diagnostics, cron retries and rollout.
+  The integration is off by default and a WhatsApp failure never invalidates an order.
 - **Admin login** is separate: `/admin/login`, its own `we_admin` cookie; the customer pages link to it.
 - **Coupons seeded**: `WELCOME10` (10% off), `FESTIVE500` (₹500 off above ₹7,999).
 - **Payments**: without `RAZORPAY_KEY_*` the Razorpay flow runs in stub mode and auto-confirms; COD works fully.

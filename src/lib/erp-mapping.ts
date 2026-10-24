@@ -638,6 +638,7 @@ export function mapOrder(raw: any): Order {
     orderStatus: (toStr(g("orderStatus")) ?? "Placed") as Order["orderStatus"],
     shippingAddress: mapAddress(g("shippingAddress") ?? {}),
     awbNo: toStr(g("awbNo")),
+    courierName: toStr(raw?.courierName),
     storeId: toStr(g("storeId")),
     couponCode: toStr(g("couponCode")),
     statusHistory: Array.isArray(raw?.statusHistory) ? raw.statusHistory.map((h: any) => ({ status: h.status, note: h.note, by: h.by, at: toISO(h.at) })) : undefined,

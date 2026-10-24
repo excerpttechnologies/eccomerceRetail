@@ -19,6 +19,7 @@ export const ADMIN_NAV: NavItem[] = [
   { href: "/admin/banners", label: "Banners", perm: "marketing:write", group: "Content" },
   { href: "/admin/coupons", label: "Coupons", perm: "marketing:write", group: "Marketing" },
   { href: "/admin/staff", label: "Staff", perm: "users:write", group: "Settings" },
+  { href: "/admin/notifications", label: "WhatsApp", perm: "settings:write", group: "Settings" },
   { href: "/admin/settings", label: "Settings", perm: "settings:write", group: "Settings" },
   { href: "/admin/users", label: "Users", perm: "users:write", group: "Settings" },
   { href: "/admin/roles", label: "Roles & permissions", perm: "users:write", group: "Settings" },

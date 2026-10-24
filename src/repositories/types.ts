@@ -110,4 +110,5 @@ export interface OrderRepository {
   }): Promise<Paginated<Order>>;
   updateStatus(orderNo: string, status: OrderStatus, note?: string, by?: string): Promise<Order | null>;
   setAwb(orderNo: string, awbNo: string): Promise<Order | null>;
+  setCourierName(orderNo: string, courierName: string): Promise<Order | null>;
 }
