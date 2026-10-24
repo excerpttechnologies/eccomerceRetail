@@ -45,7 +45,7 @@ export const ERP_COLLECTIONS = {
   products: "products", // TODO: verify against RetailERP
   categories: "categories", // TODO: verify against RetailERP
   customers: "customers", // TODO: verify against RetailERP
-  orders: "orders", // TODO: verify against RetailERP
+  orders: "orders", // verified: Admin Orders reads RetailERP online orders
   stores: "stores", // TODO: verify against RetailERP
 } as const;
 
@@ -108,6 +108,7 @@ export const CUSTOMER_FIELDS = {
   addresses: "addresses", // TODO: verify against RetailERP
   gstNumber: "gstNumber", // TODO: verify against RetailERP
   loyaltyPoints: "loyaltyPoints", // TODO: verify against RetailERP
+  isActive: "isActive", // TODO: verify against RetailERP
   createdAt: "createdAt", // TODO: verify against RetailERP
 } as const;
 export type CustomerFieldKey = keyof typeof CUSTOMER_FIELDS;
@@ -180,12 +181,15 @@ export const ERP_BARCODE_COLLECTIONS = {
   productGroups: "productgroup", // barcodeLabel.groupId    -> productgroup._id (hex string)
   businesses: "business", // barcodeLabel.businessId -> business._id (hex string)
   suppliers: "supplier",
+  ecommerceProducts: "ecommerceproduct",
+  productClassificationOptions: "productclassificationoption",
 } as const;
 
 export const BARCODE_LABEL_FIELDS = {
   id: "_id",
   barcode: "barcodeNo", // 100%; 4–10 printable ASCII chars; NOT unique (234 barcodes on several labels, even within one business)
   itemCode: "itemCode", // 100%; == barcodeNo on 77% of labels, else a shared item code ("FX-CRB")
+  itemId: "itemId", // ERP Item reference used by ecommerceproduct together with businessId
   oldBarcode: "oldBarcode", // 87%; supplier / legacy barcode
   itemName: "itemName", // 23%; denormalised copy of item.name (itemId -> item), so item is not joined
   description: "supplierDescription", // 100%
@@ -259,6 +263,7 @@ export function mapBarcodeLabel(raw: any): BarcodeProduct {
   return {
     id: toId(g("id")),
     barcode,
+    itemId: toStr(g("itemId")),
     itemCode,
     oldBarcode: oldBarcode && !same(oldBarcode, barcode) ? oldBarcode : undefined,
     name,
@@ -601,6 +606,7 @@ export function mapCustomer(raw: any): Customer {
     addresses: Array.isArray(addresses) ? addresses.map(mapAddress) : [],
     gstNumber: toStr(g("gstNumber")),
     loyaltyPoints: toNum(g("loyaltyPoints")),
+    isActive: toBool(g("isActive"), true),
     createdAt: toISO(g("createdAt")),
   };
 }
@@ -638,7 +644,6 @@ export function mapOrder(raw: any): Order {
     orderStatus: (toStr(g("orderStatus")) ?? "Placed") as Order["orderStatus"],
     shippingAddress: mapAddress(g("shippingAddress") ?? {}),
     awbNo: toStr(g("awbNo")),
-    courierName: toStr(raw?.courierName),
     storeId: toStr(g("storeId")),
     couponCode: toStr(g("couponCode")),
     statusHistory: Array.isArray(raw?.statusHistory) ? raw.statusHistory.map((h: any) => ({ status: h.status, note: h.note, by: h.by, at: toISO(h.at) })) : undefined,

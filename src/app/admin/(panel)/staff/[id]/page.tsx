@@ -42,10 +42,10 @@ export default function StaffProfilePage() {
   const fields: FieldSpec[] = [
     { name: "profile.designation", label: "Designation", type: "text" },
     { name: "profile.branch", label: "Branch", type: "select", options: () => (detail.data?.branches ?? []).map((item) => ({ value: item.id, label: item.name })) },
-    { name: "profile.mobile", label: "Mobile", type: "text" },
+    { name: "profile.mobile", label: "Mobile", type: "mobile", hint: "Enter a 10-digit Indian mobile number starting with 6-9." },
     { name: "profile.joiningDate", label: "Joining date", type: "date" },
     { name: "profile.photoUrl", label: "Photo URL", type: "text" },
-    { name: "profile.emergencyContact", label: "Emergency contact", type: "text" },
+    { name: "profile.emergencyContact", label: "Emergency contact", type: "mobile", hint: "Enter a 10-digit Indian mobile number starting with 6-9." },
     { name: "profile.address", label: "Address", type: "textarea", full: true },
     { name: "profile.notes", label: "Notes", type: "textarea", full: true },
   ];

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
 import type { ProductCard as Card } from "@/domain/types";
 import { useCart } from "@/hooks/useCart";
+import { isRemoteImageSource } from "@/lib/utils";
 import { ComingSoonImage } from "@/components/ui/coming-soon-image";
 import { Price } from "@/components/ui/price";
 import { WishlistButton } from "./wishlist-button";
@@ -20,8 +21,8 @@ export function ProductCard({ p, priority }: { p: Card; priority?: boolean }) {
     <article className="group relative">
       <Link href={productHref} className="block">
         <div className="relative aspect-[3/4] overflow-hidden rounded-sm bg-line">
-          {showErpImages && img1 ? <Image src={img1} alt={p.name} fill priority={priority} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className={`object-cover transition-all duration-700 ${img2 ? "group-hover:opacity-0" : "group-hover:scale-105"}`} /> : <ComingSoonImage className="absolute inset-0" />}
-          {showErpImages && img2 && <Image src={img2} alt="" fill sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className="object-cover opacity-0 transition-opacity duration-700 group-hover:opacity-100" />}
+          {showErpImages && img1 ? <Image src={img1} alt={p.name} fill priority={priority} unoptimized={isRemoteImageSource(img1)} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className={`object-cover transition-all duration-700 ${img2 ? "group-hover:opacity-0" : "group-hover:scale-105"}`} /> : <ComingSoonImage className="absolute inset-0" />}
+          {showErpImages && img2 && <Image src={img2} alt="" fill unoptimized={isRemoteImageSource(img2)} sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" className="object-cover opacity-0 transition-opacity duration-700 group-hover:opacity-100" />}
           <div className="absolute left-2 top-2 flex flex-col gap-1">
             {p.isNewArrival && <span className="rounded-sm bg-olive px-2 py-0.5 text-[10px] uppercase tracking-widest text-ivory">New</span>}
             {p.pricing.discountPercent > 0 && <span className="rounded-sm bg-ivory/90 px-2 py-0.5 text-[10px] uppercase tracking-widest text-maroon">{p.pricing.discountPercent}% off</span>}

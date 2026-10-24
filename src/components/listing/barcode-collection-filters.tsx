@@ -18,6 +18,12 @@ export function BarcodeCollectionFilters({ facets }: Props) {
     router.push(`${pathname}${next.size ? `?${next.toString()}` : ""}`, { scroll: false });
   };
   const choices: { key: string; label: string; options: FacetOption[] }[] = [
+    { key: "subgroup", label: "Subgroup", options: facets.subgroup ?? [] },
+    { key: "weave", label: "Weave", options: facets.weave ?? [] },
+    { key: "fabric", label: "Fabric", options: facets.fabric ?? [] },
+    { key: "craft", label: "Craft", options: facets.craft ?? [] },
+    { key: "occasion", label: "Occasion", options: facets.occasion ?? [] },
+    { key: "color", label: "Color", options: facets.color ?? [] },
     { key: "group", label: "Group", options: facets.group },
     { key: "business", label: "Business", options: facets.business },
     { key: "status", label: "Status", options: facets.status },
@@ -25,7 +31,7 @@ export function BarcodeCollectionFilters({ facets }: Props) {
   ];
 
   return (
-    <div className="my-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="my-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
       <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); update("q", String(new FormData(event.currentTarget).get("q") ?? "").trim()); }}>
         <Input name="q" defaultValue={sp.get("q") ?? ""} placeholder="Search products" aria-label="Search products" />
         <Button type="submit" variant="outline">Search</Button>

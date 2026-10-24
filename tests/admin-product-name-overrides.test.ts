@@ -38,8 +38,10 @@ describe("PATCH /api/v1/admin/products website overrides", () => {
     findOneAndUpdate.mockReturnValue({
       lean: vi.fn().mockResolvedValue({
         sku: "12345",
+        productName: "Kanjivaram Silk Saree",
         itemName: "Silk saree",
         barcodeName: "Red Banarasi",
+        isActive: false,
         productType: "SAREES",
         itemType: "By Weave",
         groupNameOverride: "Silks",
@@ -54,14 +56,16 @@ describe("PATCH /api/v1/admin/products website overrides", () => {
     });
   });
 
-  it("saves product names, type, price, quantity, and status as website metadata", async () => {
+  it("saves product names, active state, type, price, quantity, and status as website metadata", async () => {
     const request = new Request("http://localhost/api/v1/admin/products", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         sku: "12345",
+        productName: "Kanjivaram Silk Saree",
         itemName: "Silk saree",
         barcodeName: "Red Banarasi",
+        isActive: false,
         productType: "SAREES",
         itemType: "By Weave",
         groupNameOverride: "Silks",
@@ -84,8 +88,10 @@ describe("PATCH /api/v1/admin/products website overrides", () => {
       { sku: "12345" },
       expect.objectContaining({
         $set: {
+          productName: "Kanjivaram Silk Saree",
           itemName: "Silk saree",
           barcodeName: "Red Banarasi",
+          isActive: false,
           productType: "SAREES",
           itemType: "By Weave",
           groupNameOverride: "Silks",
@@ -104,8 +110,10 @@ describe("PATCH /api/v1/admin/products website overrides", () => {
       { upsert: true, new: true },
     );
     expect(body.data).toMatchObject({
+      productName: "Kanjivaram Silk Saree",
       itemName: "Silk saree",
       barcodeName: "Red Banarasi",
+      isActive: false,
       productType: "SAREES",
       itemType: "By Weave",
       groupNameOverride: "Silks",
@@ -127,8 +135,10 @@ describe("PATCH /api/v1/admin/products website overrides", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         sku: "12345",
+        productName: null,
         itemName: null,
         barcodeName: null,
+        isActive: true,
         productType: null,
         itemType: null,
         groupNameOverride: null,
@@ -148,6 +158,7 @@ describe("PATCH /api/v1/admin/products website overrides", () => {
       { sku: "12345" },
       expect.objectContaining({
         $unset: {
+          productName: 1,
           itemName: 1,
           barcodeName: 1,
           productType: 1,

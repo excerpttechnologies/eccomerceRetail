@@ -1,6 +1,13 @@
 import type { MenuNode } from "@/repositories/web/site.repository";
 
+/** "By Weave" -> weave, "By Colour" -> color: the query keys the ERP collection pages filter on. */
+function filterKeyFor(label: string): string {
+  const key = label.replace(/^by\s+/i, "").trim().toLowerCase();
+  return key === "colour" ? "color" : key;
+}
+
 function group(id: string, label: string, values: string[], href: string): MenuNode {
+  const key = filterKeyFor(label);
   return {
     id,
     label,
@@ -9,7 +16,7 @@ function group(id: string, label: string, values: string[], href: string): MenuN
       id: `${id}-${index + 1}`,
       label: value,
       kind: "link",
-      href,
+      href: `${href}?${key}=${encodeURIComponent(value)}`,
       children: [],
     })),
   };
@@ -32,7 +39,7 @@ export const DEFAULT_MENU: MenuNode[] = [
       group("default-sarees-fabric", "By Fabric", [
         "Banarasi Silk Sarees", "Chanderi Sarees", "Cotton Sarees", "Gadwal Silk Sarees",
         "Georgette Sarees", "Kanchipuram Silk Sarees", "Linen Sarees", "Mysore Silk Sarees",
-        "Paithani Silk Sarees", "Patola Silk Sarees", "Tussar Silk Sarees",
+        "Organza Sarees", "Paithani Silk Sarees", "Patola Silk Sarees", "Tussar Silk Sarees",
       ], sareesHref),
       group("default-sarees-craft", "By Craft", [
         "Bandhani", "Block Print", "Cutwork", "Hand Embroidery", "Jamdani", "Kalamkari",
@@ -93,5 +100,6 @@ export const DEFAULT_MENU: MenuNode[] = [
       ], "/collections/dupatta"),
     ],
   },
+  { id: "default-simple", label: "SIMPLE", kind: "top", href: "/collections/simple", children: [] },
   { id: "default-new-arrivals", label: "NEW ARRIVALS", kind: "top", href: "/collections/sarees?sort=newest", badge: "New", children: [] },
 ];

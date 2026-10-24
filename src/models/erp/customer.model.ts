@@ -30,6 +30,7 @@ export const CustomerSchema = new Schema(
     [C.addresses]: [AddressSchema],
     [C.gstNumber]: String,
     [C.loyaltyPoints]: { type: Number, default: 0 },
+    [C.isActive]: { type: Schema.Types.Mixed, default: true },
     [C.createdAt]: { type: Date, default: Date.now },
   }),
   { collection: ERP_COLLECTIONS.customers, strict: false, versionKey: false },

@@ -11,6 +11,7 @@ export const BarcodeLabelSchema = new Schema(
   defineFromMapping({
     [B.barcode]: String,
     [B.itemCode]: String,
+    [B.itemId]: Schema.Types.Mixed,
     [B.oldBarcode]: String,
     [B.itemName]: String,
     [B.description]: String,

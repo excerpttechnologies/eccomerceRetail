@@ -5,6 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function isRemoteImageSource(src: string): boolean {
+  return /^(?:https?:)?\/\//i.test(src);
+}
+
 /** URL-safe slug: "Maroon Kanchipuram Silk Saree" -> "maroon-kanchipuram-silk-saree" */
 export function slugify(input: string): string {
   return String(input ?? "")

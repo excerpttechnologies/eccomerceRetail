@@ -1,13 +1,11 @@
 import type { NextRequest } from "next/server";
-import { after } from "next/server";
 import { z } from "zod";
 import { parseBody } from "@/lib/api/body";
 import { fail, handler, ok } from "@/lib/api/response";
 import { getCustomerSession } from "@/lib/auth";
 import { clearCart, getCartToken, getCartView } from "@/lib/cart-server";
 import { getWebConnection } from "@/lib/db";
-import { createGatewayOrder, verifyRazorpaySignature } from "@/lib/payments";
-import { deliverNotification, enqueueOrderNotification } from "@/lib/whatsapp/notifications";
+import { createGatewayOrder, isRazorpayConfigured, verifyRazorpayPayment } from "@/lib/payments";
 import { CouponModel } from "@/models/web/commerce.models";
 import { getCustomers, getOrders, getSite } from "@/repositories";
 
@@ -38,7 +36,11 @@ export const POST = handler(async (req: NextRequest) => {
       paymentMode: z.enum(["COD", "RAZORPAY"]),
       email: z.string().email().optional(),
       saveAddress: z.boolean().default(true),
-      payment: z.object({ orderId: z.string(), paymentId: z.string(), signature: z.string() }).optional(),
+      payment: z.object({
+        orderId: z.string().min(1).max(100),
+        paymentId: z.string().min(1).max(100),
+        signature: z.string().regex(/^[a-f\d]{64}$/i),
+      }).optional(),
     }),
   );
   if (!b.ok) return b.res;
@@ -56,15 +58,21 @@ export const POST = handler(async (req: NextRequest) => {
     return fail("PINCODE_UNSERVICEABLE", "We do not deliver to this pincode", 422);
   }
   if (b.data.paymentMode === "COD" && settings.commerce?.codEnabled === false) return fail("COD_DISABLED", "Cash on delivery is not available", 422);
+  if (b.data.paymentMode === "RAZORPAY" && settings.commerce?.razorpayEnabled !== true) {
+    return fail("ONLINE_PAYMENT_DISABLED", "Online payment is currently unavailable. Please choose cash on delivery.", 422);
+  }
+  if (b.data.paymentMode === "RAZORPAY" && !isRazorpayConfigured()) {
+    return fail("ONLINE_PAYMENT_UNAVAILABLE", "Online payment is not configured yet. Please choose cash on delivery or contact support.", 503);
+  }
 
-  // Razorpay two-step
   if (b.data.paymentMode === "RAZORPAY" && !b.data.payment) {
     const gw = await createGatewayOrder(cart.totals.netAmount, token.slice(0, 12));
     return ok({ step: "payment", gateway: gw });
   }
   if (b.data.paymentMode === "RAZORPAY" && b.data.payment) {
-    const { orderId, paymentId, signature } = b.data.payment;
-    if (!verifyRazorpaySignature(orderId, paymentId, signature)) return fail("PAYMENT_INVALID", "Payment could not be verified", 402);
+    if (!(await verifyRazorpayPayment(b.data.payment, cart.totals.netAmount))) {
+      return fail("PAYMENT_INVALID", "Payment could not be verified for this order amount. Please retry or contact support.", 402);
+    }
   }
 
   const session = await getCustomerSession();
@@ -90,33 +98,16 @@ export const POST = handler(async (req: NextRequest) => {
     shippingCharge: cart.totals.shippingCharge,
     netAmount: cart.totals.netAmount,
     paymentMode: b.data.paymentMode,
+    paymentStatus: b.data.paymentMode === "RAZORPAY" ? "Paid" : "Pending",
+    orderStatus: b.data.paymentMode === "RAZORPAY" ? "Confirmed" : "Placed",
+    paymentGatewayOrderId: b.data.payment?.orderId,
+    paymentTransactionId: b.data.payment?.paymentId,
     shippingAddress: b.data.address,
     storeId: settings.defaultStoreId ?? undefined,
     couponCode: cart.couponCode,
   });
-
   if (cart.couponCode) await CouponModel(await getWebConnection()).updateOne({ code: cart.couponCode }, { $inc: { usedCount: 1 } });
-
-  // Durable outbox row is written before the response; the actual Meta call runs in
-  // `after()` so checkout latency is never tied to WhatsApp availability.
-  const notificationIds: string[] = [];
-  if (b.data.paymentMode === "COD") {
-    // COD acceptance is the confirmation point in this application.
-    const id = await enqueueOrderNotification(order, "order_confirmation");
-    if (id) notificationIds.push(id);
-  } else {
-    const confirmed = await getOrders().updateStatus(order.orderNo, "Confirmed", `Paid via Razorpay ${b.data.payment?.paymentId}`, "system");
-    if (confirmed) {
-      const id = await enqueueOrderNotification(confirmed, "order_confirmation");
-      if (id) notificationIds.push(id);
-    }
-  }
-  if (notificationIds.length) {
-    after(async () => {
-      await Promise.all(notificationIds.map((id) => deliverNotification(id)));
-    });
-  }
-
+  if (cart.couponCode) await CouponModel(await getWebConnection()).updateOne({ code: cart.couponCode }, { $inc: { usedCount: 1 } });
   await clearCart(token);
 
   return ok({ step: "done", orderNo: order.orderNo, netAmount: order.netAmount }, undefined, { status: 201 });

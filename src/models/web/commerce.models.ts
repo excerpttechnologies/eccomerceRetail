@@ -51,6 +51,7 @@ export const CouponSchema = new Schema(
     validFrom: Date,
     validTo: Date,
     isActive: { type: Boolean, default: true },
+    isAdvertised: { type: Boolean, default: false },
   },
   { collection: "coupons", timestamps: true },
 );
@@ -101,20 +102,11 @@ export const OtpSchema = new Schema(
   {
     mobile: { type: String, required: true, index: true },
     codeHash: { type: String, required: true },
-    /** Binds the code to one flow; login is the only flow today. */
-    purpose: { type: String, enum: ["login"], default: "login", index: true },
-    channel: { type: String, enum: ["whatsapp", "sms"], default: "whatsapp" },
     attempts: { type: Number, default: 0 },
-    /** Hash of the requesting IP, used only for rate limiting (never the raw IP). */
-    ipHash: String,
-    providerMessageId: String,
-    sentAt: { type: Date, default: Date.now, index: true },
     expiresAt: { type: Date, required: true, index: { expires: 0 } },
   },
   { collection: "otpCodes" },
 );
-OtpSchema.index({ mobile: 1, purpose: 1, sentAt: -1 });
-OtpSchema.index({ ipHash: 1, sentAt: -1 });
 export type OtpDoc = InferSchemaType<typeof OtpSchema>;
 export const OtpModel = (c: Connection) => getModel<OtpDoc>(c, "Otp", OtpSchema);
 

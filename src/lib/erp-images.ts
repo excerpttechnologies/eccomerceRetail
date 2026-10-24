@@ -22,6 +22,13 @@ export const ERP_PLACEHOLDER_IMAGE_SHA256 = "ec0d918142dc57872c203df5a7073da46e7
 
 const DATA_IMAGE = /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i;
 const SPACES_HOST = /^([a-z0-9.-]+)\.([a-z0-9-]+)\.digitaloceanspaces\.com$/i;
+const BARCODE_IMAGE_ORIGIN = "https://erp.wovenessence.in";
+const BARCODE_IMAGE_PATH = /^\/august_8A_images\/[a-z0-9_-]+\.jpg$/i;
+
+export function barcodeImageUrl(barcode: string): string | undefined {
+  if (!/^[a-z0-9_-]+$/i.test(barcode)) return undefined;
+  return `${BARCODE_IMAGE_ORIGIN}/august_8A_images/${encodeURIComponent(barcode)}.jpg`;
+}
 
 export interface SpacesCredentials {
   accessKeyId: string;
@@ -92,6 +99,7 @@ export function isAllowedImageUrl(url: string, opts: Pick<ImageResolveOptions, "
   if (url.startsWith("data:")) return true;
   try {
     const u = new URL(url);
+    if (u.protocol === "https:" && u.origin === BARCODE_IMAGE_ORIGIN && BARCODE_IMAGE_PATH.test(u.pathname)) return true;
     if (u.protocol === "https:" && isSpacesHostAllowed(u.hostname, opts)) return true;
     if (!opts.base) return false;
     const b = new URL(opts.base);
@@ -199,14 +207,33 @@ export interface ResolvedImage {
 /** Stored references -> loadable candidates (allowed hosts only), in priority order. */
 function candidates(refs: unknown[], opts: ImageResolveOptions): { urls: string[]; sawPlaceholder: boolean; sawDisallowed: boolean } {
   const urls: string[] = [];
+  const seenUrls = new Set<string>();
   let sawPlaceholder = false;
   let sawDisallowed = false;
   for (const ref of refs) {
     const n = normalizeImageRef(ref, opts);
     if (!n) continue;
     if ("placeholder" in n) sawPlaceholder = true;
-    else if (isAllowedImageUrl(n.url, opts)) urls.push(n.url);
-    else sawDisallowed = true; // e.g. http://wovenessencemobile.etpl.ai — host no longer resolves
+    else if (isAllowedImageUrl(n.url, opts)) {
+      const sourceUrl = new URL(n.url);
+      const barcodeImage = sourceUrl.pathname.match(/^\/august_8A_images\/([a-z0-9_-]+\.(?:jpe?g|png|webp))$/i);
+      if (barcodeImage && sourceUrl.origin !== BARCODE_IMAGE_ORIGIN) {
+        for (const host of opts.spacesHosts ?? []) {
+          const spacesImage = normalizeImageRef(
+            `https://${host}/1/1/barcodes/${barcodeImage[1]}`,
+            opts,
+          );
+          if (spacesImage && "url" in spacesImage && !seenUrls.has(spacesImage.url)) {
+            urls.push(spacesImage.url);
+            seenUrls.add(spacesImage.url);
+          }
+        }
+      }
+      if (!seenUrls.has(n.url)) {
+        urls.push(n.url);
+        seenUrls.add(n.url);
+      }
+    } else sawDisallowed = true; // e.g. http://wovenessencemobile.etpl.ai — host no longer resolves
   }
   return { urls, sawPlaceholder, sawDisallowed };
 }

@@ -22,7 +22,7 @@ const toSearchParams = (sp: SP) => {
 const firstParam = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
 
 function erpGroupForSlug(slug: string): StorefrontCategoryGroup | null {
-  if (slug === "sarees" || slug === "fabrics" || slug === "plain-fabrics" || slug === "dupatta") return slug;
+  if (slug === "sarees" || slug === "fabrics" || slug === "plain-fabrics" || slug === "dupatta" || slug === "simple") return slug;
   return null;
 }
 
@@ -67,6 +67,12 @@ export default async function CollectionPage({ params, searchParams }: { params:
       business: firstParam(sp.business),
       status: firstParam(sp.status),
       uomType: firstParam(sp.uomType),
+      subgroup: firstParam(sp.subgroup),
+      weave: firstParam(sp.weave),
+      fabric: firstParam(sp.fabric),
+      craft: firstParam(sp.craft),
+      occasion: firstParam(sp.occasion),
+      color: firstParam(sp.color),
       q: firstParam(sp.q),
       ...(selectedBarcode ? { barcode: selectedBarcode } : {}),
     };

@@ -11,6 +11,7 @@ import { Price } from "@/components/ui/price";
 import { useUi } from "@/store/ui";
 import { QtyStepper } from "./qty-stepper";
 import { ComingSoonImage } from "@/components/ui/coming-soon-image";
+import { isRemoteImageSource } from "@/lib/utils";
 
 export function CartPage() {
   const { cart, update, coupon, isLoading } = useCart();
@@ -34,7 +35,7 @@ export function CartPage() {
             {cart.lines.map((l) => (
               <li key={l.sku} className="flex gap-5 py-5">
                 <Link href={l.product.isBarcodeLabel ? `/collections/${/fabric|fabs/i.test(l.product.category) ? "fabrics" : "sarees"}?q=${encodeURIComponent(l.sku)}` : `/products/${l.product.slug}`} className="relative h-36 w-28 shrink-0 overflow-hidden rounded-sm bg-line">
-                  {l.product.images[0] ? <Image src={l.product.images[0]} alt={l.product.name} fill sizes="112px" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}
+                  {l.product.images[0] ? <Image src={l.product.images[0]} alt={l.product.name} fill unoptimized={isRemoteImageSource(l.product.images[0])} sizes="112px" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}
                 </Link>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <Link href={l.product.isBarcodeLabel ? `/collections/${/fabric|fabs/i.test(l.product.category) ? "fabrics" : "sarees"}?q=${encodeURIComponent(l.sku)}` : `/products/${l.product.slug}`} className="text-base hover:text-maroon">{l.product.name}</Link>

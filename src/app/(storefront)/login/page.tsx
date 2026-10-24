@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCustomerSession } from "@/lib/auth";
-import { isWhatsAppOtpAvailable } from "@/lib/whatsapp/config";
 import { safeNextPath } from "@/lib/utils";
 import { AuthShell } from "@/components/account/auth-shell";
-import { LoginTabs } from "@/components/account/login-tabs";
+import { LoginForm } from "@/components/account/customer-auth-forms";
 
 export const metadata: Metadata = { title: "Log in", robots: { index: false } };
 
@@ -18,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       subtitle="Welcome back! Please enter your details."
       switchTo={{ prompt: "New to Woven Essence?", label: "Create an account", href: `/register${carry}` }}
     >
-      <LoginTabs next={next} whatsappAvailable={isWhatsAppOtpAvailable()} />
+      <LoginForm next={next} />
     </AuthShell>
   );
 }

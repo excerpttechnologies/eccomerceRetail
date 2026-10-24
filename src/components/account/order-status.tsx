@@ -1,12 +1,12 @@
 import type { OrderStatus } from "@/domain/types";
 import type { BadgeTone } from "@/components/ui/badge";
 
-export const ORDER_FLOW: OrderStatus[] = ["Placed", "Confirmed", "Packed", "Shipped", "Delivered"];
+export const ORDER_FLOW: OrderStatus[] = ["Placed", "Confirmed", "Packed", "Shipped", "Out for delivery", "Delivered"];
 
 export function orderTone(s: OrderStatus): BadgeTone {
   if (s === "Delivered") return "green";
   if (s === "Cancelled" || s === "Returned") return "red";
-  if (s === "Shipped") return "blue";
+  if (s === "Shipped" || s === "Out for delivery") return "blue";
   if (s === "Placed") return "amber";
   return "olive";
 }

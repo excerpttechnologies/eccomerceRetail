@@ -7,6 +7,7 @@ import type {
   CategoryNode,
   Customer,
   DataSource,
+  FacetOption,
   FilterKey,
   Order,
   OrderItem,
@@ -62,6 +63,19 @@ export interface BarcodeLabelRepository {
   list(params: BarcodeListParams): Promise<Paginated<BarcodeProduct> & { skipped: number }>;
   /** Resolve label document IDs through modern ERP Item group assignments. */
   getLabelIdsForItemGroups(groupIds: string[]): Promise<string[]>;
+  /** Resolve barcode-label IDs through active ERP e-commerce product types. */
+  getLabelIdsForProductTypes(
+    productTypes: string[],
+    subgroupId?: string,
+    query?: string,
+    classifications?: Partial<Record<"weave" | "fabric" | "craft" | "occasion" | "color", string>>,
+  ): Promise<string[]>;
+  /** Resolve ERP subgroup filters available for active e-commerce product types. */
+  getProductTypeSubgroups(productTypes: string[]): Promise<FacetOption[]>;
+  /** Resolve live ERP e-commerce classification filters by product type. */
+  getProductTypeClassifications(
+    productTypes: string[],
+  ): Promise<Partial<Record<"weave" | "fabric" | "craft" | "occasion" | "color", FacetOption[]>>>;
   /** Filter options with live counts (status, product group, business, UOM type). */
   facets(params?: BarcodeListParams): Promise<BarcodeFacets>;
   /** Newest label carrying this barcode (images not resolved). */
@@ -91,6 +105,10 @@ export interface CreateOrderInput {
   shippingCharge: number;
   netAmount: number;
   paymentMode: PaymentMode;
+  paymentStatus?: Order["paymentStatus"];
+  orderStatus?: Order["orderStatus"];
+  paymentGatewayOrderId?: string;
+  paymentTransactionId?: string;
   shippingAddress: Address;
   storeId?: string;
   couponCode?: string;
@@ -102,6 +120,7 @@ export interface OrderRepository {
   listByCustomer(customerId: string, params?: { page?: number; limit?: number }): Promise<Paginated<Order>>;
   list(params: {
     status?: OrderStatus;
+    paymentStatus?: Order["paymentStatus"];
     q?: string;
     from?: Date;
     to?: Date;
@@ -110,5 +129,4 @@ export interface OrderRepository {
   }): Promise<Paginated<Order>>;
   updateStatus(orderNo: string, status: OrderStatus, note?: string, by?: string): Promise<Order | null>;
   setAwb(orderNo: string, awbNo: string): Promise<Order | null>;
-  setCourierName(orderNo: string, courierName: string): Promise<Order | null>;
 }

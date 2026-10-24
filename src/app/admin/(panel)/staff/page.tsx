@@ -93,20 +93,20 @@ export default function StaffDirectoryPage() {
     { name: "isActive", label: "Active login", type: "boolean" },
     { name: "profile.designation", label: "Designation", type: "text", placeholder: "Sales executive, Packer, Store manager" },
     { name: "profile.branch", label: "Branch", type: "select", options: () => (data?.branches ?? []).map((item) => ({ value: item.id, label: item.name })) },
-    { name: "profile.mobile", label: "Mobile", type: "text" },
+    { name: "profile.mobile", label: "Mobile", type: "mobile", hint: "Enter a 10-digit Indian mobile number starting with 6-9." },
     { name: "profile.joiningDate", label: "Joining date", type: "date" },
     { name: "profile.photoUrl", label: "Photo URL", type: "text" },
-    { name: "profile.emergencyContact", label: "Emergency contact", type: "text" },
+    { name: "profile.emergencyContact", label: "Emergency contact", type: "mobile", hint: "Enter a 10-digit Indian mobile number starting with 6-9." },
     { name: "profile.address", label: "Address", type: "textarea", full: true },
     { name: "profile.notes", label: "Notes", type: "textarea", full: true },
   ];
   const editFields: FieldSpec[] = [
     { name: "profile.designation", label: "Designation", type: "text" },
     { name: "profile.branch", label: "Branch", type: "select", options: () => (editDetail.data?.branches ?? []).map((item) => ({ value: item.id, label: item.name })) },
-    { name: "profile.mobile", label: "Mobile", type: "text" },
+    { name: "profile.mobile", label: "Mobile", type: "mobile", hint: "Enter a 10-digit Indian mobile number starting with 6-9." },
     { name: "profile.joiningDate", label: "Joining date", type: "date" },
     { name: "profile.photoUrl", label: "Photo URL", type: "text" },
-    { name: "profile.emergencyContact", label: "Emergency contact", type: "text" },
+    { name: "profile.emergencyContact", label: "Emergency contact", type: "mobile", hint: "Enter a 10-digit Indian mobile number starting with 6-9." },
     { name: "profile.address", label: "Address", type: "textarea", full: true },
     { name: "profile.notes", label: "Notes", type: "textarea", full: true },
   ];
@@ -124,7 +124,7 @@ export default function StaffDirectoryPage() {
 
   return (
     <div>
-      <PageHeader title="Staff" subtitle="People and their directory profiles.">
+      <PageHeader title="Staff">
         <Button size="sm" onClick={() => { setCreateError(null); setAdding(true); }}><Plus className="h-4 w-4" /> Add staff</Button>
       </PageHeader>
       <div className="mb-3 flex flex-wrap items-center gap-2">

@@ -10,6 +10,7 @@ import { api } from "@/hooks/api";
 import { Price } from "@/components/ui/price";
 import { useUi } from "@/store/ui";
 import { ComingSoonImage } from "@/components/ui/coming-soon-image";
+import { isRemoteImageSource } from "@/lib/utils";
 
 export function SearchOverlay() {
   const open = useUi((s) => s.searchOpen);
@@ -66,7 +67,7 @@ export function SearchOverlay() {
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 rounded-sm p-2 hover:bg-olive/5"
             >
-              <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-line">{p.images[0] ? <Image src={p.images[0]} alt="" fill sizes="48px" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}</div>
+              <div className="relative h-16 w-12 shrink-0 overflow-hidden rounded-sm bg-line">{p.images[0] ? <Image src={p.images[0]} alt="" fill unoptimized={isRemoteImageSource(p.images[0])} sizes="48px" className="object-cover" /> : <ComingSoonImage className="absolute inset-0" />}</div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{p.web?.cardTitle || p.name}</p>
                 <p className="text-xs text-muted">{p.fabric}</p>

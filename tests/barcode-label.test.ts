@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseBarcodeListParams } from "@/lib/api/query";
-import { applyPrintDescriptionOverrides, ERP_CATEGORY_GROUP_IDS } from "@/lib/barcode-image-series";
+import { applyPrintDescriptionOverrides, ERP_CATEGORY_PRODUCT_TYPES } from "@/lib/barcode-image-series";
 import { CODE128_PATTERNS, encodeCode128B } from "@/lib/barcode/code128";
-import { isAllowedImageUrl, normalizeImageRef, presignS3Get, resolveRecordImage } from "@/lib/erp-images";
+import { barcodeImageUrl, isAllowedImageUrl, normalizeImageRef, presignS3Get, resolveRecordImage } from "@/lib/erp-images";
 import { BARCODE_JOINED, barcodeProductToProduct, mapBarcodeLabel } from "@/lib/erp-mapping";
 
 const BASE = "https://wovenessence.etpl.ai";
@@ -12,15 +12,16 @@ const SPACES = ["templeimg.blr1.digitaloceanspaces.com"];
 const PLACEHOLDER = `data:image/jpeg;base64,${readFileSync(path.join(__dirname, "fixtures/erp-placeholder.jpg.b64"), "utf8").trim()}`;
 
 describe("ERP storefront category groups", () => {
-  it("uses verified exact group IDs and keeps category scopes disjoint", () => {
-    expect(ERP_CATEGORY_GROUP_IDS).toEqual({
-      sarees: ["6a9905f8ee2f8f36193a0ce2"],
-      fabrics: ["6a9904d4ee2f8f36193a0a52"],
-      "plain-fabrics": ["6a990579ee2f8f36193a0c14"],
-      dupatta: ["6a990672ee2f8f36193a0db0"],
+  it("maps storefront categories to ERP e-commerce product types", () => {
+    expect(ERP_CATEGORY_PRODUCT_TYPES).toEqual({
+      sarees: ["SAREES"],
+      fabrics: ["FABRICS"],
+      "plain-fabrics": ["PLAIN FABRICS"],
+      dupatta: ["DUPATTA"],
+      simple: ["Simple", "SIMPLE"],
     });
-    const allGroupIds = Object.values(ERP_CATEGORY_GROUP_IDS).flat();
-    expect(new Set(allGroupIds).size).toBe(allGroupIds.length);
+    const allProductTypes = Object.values(ERP_CATEGORY_PRODUCT_TYPES).flat();
+    expect(new Set(allProductTypes).size).toBe(allProductTypes.length);
   });
 });
 
@@ -160,15 +161,25 @@ describe("normalizeImageRef", () => {
 });
 
 describe("isAllowedImageUrl", () => {
-  it("allows only the configured Spaces buckets, ERP_IMAGE_BASE and data URIs", () => {
+  it("allows only configured image hosts, the barcode image directory and data URIs", () => {
     const opts = { base: BASE, spacesHosts: SPACES };
     expect(isAllowedImageUrl("https://templeimg.blr1.digitaloceanspaces.com/a.jpg", opts)).toBe(true);
     expect(isAllowedImageUrl(`${BASE}/august_8A_images/a.jpg`, opts)).toBe(true);
+    expect(isAllowedImageUrl("https://erp.wovenessence.in/august_8A_images/8A2524.jpg")).toBe(true);
+    expect(isAllowedImageUrl("https://erp.wovenessence.in/private/a.jpg")).toBe(false);
+    expect(isAllowedImageUrl("http://erp.wovenessence.in/august_8A_images/8A2524.jpg")).toBe(false);
     expect(isAllowedImageUrl("data:image/jpeg;base64,AA==", opts)).toBe(true);
     expect(isAllowedImageUrl("https://evil.nyc3.digitaloceanspaces.com/a.jpg", opts)).toBe(false);
     expect(isAllowedImageUrl("http://templeimg.blr1.digitaloceanspaces.com/a.jpg", opts)).toBe(false);
     expect(isAllowedImageUrl("http://wovenessencemobile.etpl.ai/uploads/a.jpg", opts)).toBe(false);
     expect(isAllowedImageUrl(`${BASE}/a.jpg`, { spacesHosts: SPACES })).toBe(false); // base not configured
+  });
+});
+
+describe("barcodeImageUrl", () => {
+  it("builds the ERP photo URL from a safe barcode", () => {
+    expect(barcodeImageUrl("8A2524")).toBe("https://erp.wovenessence.in/august_8A_images/8A2524.jpg");
+    expect(barcodeImageUrl("../private")).toBeUndefined();
   });
 });
 
@@ -201,6 +212,23 @@ describe("resolveRecordImage", () => {
     expect(seen.find((s) => s.url === a)).toEqual({ url: a, method: "GET", range: "bytes=0-0" });
   });
 
+  it("uses the exact barcode image in Spaces before trying the unavailable ERP image host", async () => {
+    const original = `${BASE}/august_8A_images/8A4001.jpg`;
+    const spaces = `https://${SPACES[0]}/1/1/barcodes/8A4001.jpg`;
+
+    expect(await resolveRecordImage([original], OPTS, fakeFetch({ [spaces]: 206 }))).toEqual({ image: spaces });
+    expect(seen.find((entry) => entry.url === spaces)).toMatchObject({ method: "GET", range: "bytes=0-0" });
+  });
+
+  it("fetches the barcode-named ERP image without an ERP_IMAGE_BASE setting", async () => {
+    const image = barcodeImageUrl("8A2525")!;
+
+    const spaces = `https://${SPACES[0]}/1/1/barcodes/8A2525.jpg`;
+    expect(await resolveRecordImage([image], OPTS, fakeFetch({ [image]: 206, [spaces]: 206 }))).toEqual({ image });
+    expect(seen.find((entry) => entry.url === image)).toMatchObject({ method: "GET", range: "bytes=0-0" });
+    expect(seen.some((entry) => entry.url === spaces)).toBe(false);
+  });
+
   it("reports why there is no image", async () => {
     const e = `https://templeimg.blr1.digitaloceanspaces.com/T${++n}.jpg`;
     expect(await resolveRecordImage([e, ""], OPTS, fakeFetch({ [e]: 403 }))).toEqual({ imageIssue: "unavailable" });
@@ -226,15 +254,17 @@ describe("resolveRecordImage", () => {
 
   it("stops waiting at the page deadline", async () => {
     const a = `${BASE}/august_8A_images/T${++n}.jpg`;
+    const spaces = `https://${SPACES[0]}/1/1/barcodes/T${n}.jpg`;
     const t = Date.now();
-    expect(await resolveRecordImage([a], OPTS, fakeFetch({ [a]: "hang" }), Date.now() + 50)).toEqual({ image: a });
+    expect(await resolveRecordImage([a], OPTS, fakeFetch({ [spaces]: "hang" }), Date.now() + 50)).toEqual({ image: spaces });
     expect(Date.now() - t).toBeLessThan(1000);
   });
 
-  it("passes the URL through when the host cannot be reached (UI falls back on error)", async () => {
+  it("tries the ERP image when the matching Spaces object cannot be reached", async () => {
     const down = "https://erp-down.example"; // own host: an unreachable host is skipped for 60 s afterwards
     const f = `${down}/august_8A_images/T${++n}.jpg`;
-    expect(await resolveRecordImage([f], { base: down, spacesHosts: SPACES }, fakeFetch({ [f]: "throw" }))).toEqual({ image: f });
+    const spaces = `https://${SPACES[0]}/1/1/barcodes/T${n}.jpg`;
+    expect(await resolveRecordImage([f], { base: down, spacesHosts: SPACES }, fakeFetch({ [spaces]: "throw", [f]: 200 }))).toEqual({ image: f });
   });
 });
 

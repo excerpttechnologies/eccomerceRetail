@@ -25,7 +25,7 @@ export interface AssistantTurn {
 }
 export type AssistantEvent = { type: "text"; text: string } | { type: "activity"; label: string } | { type: "error"; message: string } | { type: "done" };
 
-const ORDER_STATUSES = ["Placed", "Confirmed", "Packed", "Shipped", "Delivered", "Cancelled", "Returned"] as const satisfies readonly OrderStatus[];
+const ORDER_STATUSES = ["Placed", "Confirmed", "Packed", "Shipped", "Out for delivery", "Delivered", "Cancelled", "Returned"] as const satisfies readonly OrderStatus[];
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe("Calendar date, YYYY-MM-DD (UTC)");
 const page = z.coerce.number().int().min(1).optional().describe("Page number, starting at 1");
 const limit = z.coerce.number().int().min(1).optional().describe(`Rows per page, at most ${MAX_ROWS}`);

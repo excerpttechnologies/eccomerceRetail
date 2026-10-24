@@ -9,7 +9,6 @@ export default function CollectionsPage() {
     <ResourcePage<Collection>
       resource="collections"
       title="Collections"
-      subtitle="Rule-based collections filter RetailERP products live (e.g. fabric in [Kanchipuram Silk] AND occasion contains Wedding). Manual collections pin item codes."
       columns={[
         { key: "name", label: "Name", render: (r) => <span className="font-medium">{r.name}</span> },
         { key: "slug", label: "Slug", className: "text-xs text-muted" },

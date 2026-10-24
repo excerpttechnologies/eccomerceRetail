@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Connection, FilterQuery, Model, PipelineStage } from "mongoose";
-import { env } from "@/lib/env";
+import { Types, type Connection, type FilterQuery, type Model, type PipelineStage } from "mongoose";
 import { toObjectIdOrString } from "@/lib/db";
 import {
   BARCODE_JOINED,
@@ -12,7 +11,7 @@ import {
   SUPPLIER_FIELDS,
   mapBarcodeLabel,
 } from "@/lib/erp-mapping";
-import { mapLimit, resolveRecordImage, type ImageResolveOptions } from "@/lib/erp-images";
+import { barcodeImageUrl } from "@/lib/erp-images";
 import { escapeRegex } from "@/lib/utils";
 import { BarcodeLabelModel } from "@/models/erp/barcode-label.model";
 import type { AnyDoc } from "@/models/_util";
@@ -20,9 +19,54 @@ import type { BarcodeFacets, BarcodeListParams, BarcodeProduct, FacetOption, Pag
 import type { BarcodeLabelRepository } from "../types";
 
 const MAX_LIMIT = 96;
-const IMAGE_CONCURRENCY = 12;
-/** Longest a page waits for image checks; slower checks finish in the background and warm the cache. */
-const IMAGE_DEADLINE_MS = 2500;
+type ErpId = string | Types.ObjectId;
+type EcommerceClassification = "weave" | "fabric" | "craft" | "occasion" | "color";
+
+const ECOMMERCE_CLASSIFICATIONS: Record<EcommerceClassification, { ids: string; text: string; nested: string }> = {
+  weave: { ids: "byWeave", text: "weaveDescription", nested: "weave" },
+  fabric: { ids: "byFabric", text: "fabricDescription", nested: "fabric" },
+  craft: { ids: "byCraft", text: "craftDescription", nested: "work" },
+  occasion: { ids: "byOccasion", text: "occasionDescription", nested: "occasion" },
+  color: { ids: "byColour", text: "colourDescription", nested: "color" },
+};
+
+function stringValues(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : value == null ? [] : [value];
+  return values.flatMap((item) => {
+    if (typeof item === "string" && item.trim()) return [item.trim()];
+    if (typeof item === "number") return [String(item)];
+    if (item && typeof item === "object" && typeof (item as { toHexString?: unknown }).toHexString === "function") {
+      return [(item as Types.ObjectId).toHexString()];
+    }
+    return [];
+  });
+}
+
+function ecommerceClassificationValues(product: AnyDoc, field: EcommerceClassification): string[] {
+  const config = ECOMMERCE_CLASSIFICATIONS[field];
+  const attributes = product.attributes && typeof product.attributes === "object"
+    ? product.attributes as Record<string, unknown>
+    : {};
+  return [...new Set([
+    ...stringValues(product[config.ids]),
+    ...stringValues(product[config.text]),
+    ...stringValues(attributes[config.nested]),
+  ])];
+}
+
+/** Live on the storefront: the ERP's "Is Published" tick alone decides (Is Active / Active Status are not used). */
+function activeEcommerceMatch(productTypes: string[]): Record<string, unknown> {
+  return {
+    productType: { $in: productTypes },
+    isPublished: true,
+  };
+}
+
+/** Barcodes the ERP product-eccom form saved on the record (`barcode`, plus any extra in `barcodes`). */
+function savedBarcodes(product: AnyDoc): string[] {
+  const values = [product.barcode, ...(Array.isArray(product.barcodes) ? product.barcodes : [])];
+  return [...new Set(values.map((value) => (typeof value === "string" || typeof value === "number" ? String(value).trim() : "")).filter(Boolean))];
+}
 
 /** Only the fields the mapper reads leave the database. */
 const PROJECTION: Record<string, 1> = Object.fromEntries(
@@ -109,18 +153,28 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
     return BarcodeLabelModel(await this.conn());
   }
 
-  private imageOptions(): ImageResolveOptions {
-    return {
-      base: env.ERP_IMAGE_BASE,
-      spacesHosts: env.ERP_IMAGE_SPACES_HOSTS,
-      spaces: env.DO_SPACES_KEY && env.DO_SPACES_SECRET ? { accessKeyId: env.DO_SPACES_KEY, secretAccessKey: env.DO_SPACES_SECRET } : undefined,
-    };
+  private async classificationNames(connection: Connection, products: AnyDoc[]) {
+    const ids = [...new Set(Object.keys(ECOMMERCE_CLASSIFICATIONS).flatMap((field) =>
+      products.flatMap((product) => ecommerceClassificationValues(product, field as EcommerceClassification)),
+    ))];
+    const objectIds = ids.filter(Types.ObjectId.isValid).map((id) => new Types.ObjectId(id));
+    if (!objectIds.length) return new Map<string, string>();
+    const options = await connection.db!.collection<{ _id: ErpId; name?: unknown }>(ERP_BARCODE_COLLECTIONS.productClassificationOptions)
+      .find({ _id: { $in: objectIds } }, { projection: { _id: 1, name: 1 } })
+      .toArray();
+    return new Map(options.flatMap((option) =>
+      typeof option.name === "string" && option.name.trim()
+        ? [[String(option._id), option.name.trim()] as const]
+        : [],
+    ));
   }
 
   private match(params: BarcodeListParams): FilterQuery<AnyDoc> {
     const and: FilterQuery<AnyDoc>[] = [];
     if (params.labelIds?.length) and.push({ _id: { $in: params.labelIds.map(toObjectIdOrString) } });
     if (params.barcodes?.length) and.push({ [B.barcode]: { $in: params.barcodes } });
+    if (params.excludedBarcodes?.length) and.push({ [B.barcode]: { $nin: params.excludedBarcodes } });
+    if (params.inStockStatusOnly) and.push({ [B.status]: "IN_STOCK" });
     if (params.availableOnly) {
       const qty = {
         $ifNull: [
@@ -154,18 +208,13 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
   }
 
   /** Raw docs -> domain rows. A record that cannot be mapped is logged and skipped, never fatal. */
-  private async hydrate(
-    docs: AnyDoc[],
-    imageCheckDeadlineMs = IMAGE_DEADLINE_MS,
-  ): Promise<{ items: BarcodeProduct[]; skipped: number }> {
-    const opts = this.imageOptions();
-    const deadlineAt = Date.now() + imageCheckDeadlineMs;
+  private hydrate(docs: AnyDoc[]): { items: BarcodeProduct[]; skipped: number } {
     let skipped = 0;
-    const rows = await mapLimit(docs, IMAGE_CONCURRENCY, async (raw) => {
+    const rows = docs.map((raw) => {
       try {
         const product = mapBarcodeLabel(raw);
-        const img = await resolveRecordImage([raw[B.imageUrl], raw[B.filePath]], opts, undefined, deadlineAt);
-        return { ...product, ...img };
+        const image = barcodeImageUrl(product.barcode);
+        return image ? { ...product, image } : product;
       } catch (e) {
         skipped++;
         console.warn(`[barcodeLabel] skipped record ${String(raw?._id)}: ${(e as Error).message}`);
@@ -191,13 +240,8 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
       ]),
       Object.keys(match).length ? M.countDocuments(match) : M.estimatedDocumentCount(),
     ]);
-    const requestedDeadline =
-      typeof params.imageCheckDeadlineMs === "number" && Number.isFinite(params.imageCheckDeadlineMs)
-        ? params.imageCheckDeadlineMs
-        : IMAGE_DEADLINE_MS;
-    const imageCheckDeadlineMs = Math.min(30_000, Math.max(0, requestedDeadline));
     const [{ items, skipped }, shared] = await Promise.all([
-      this.hydrate(docs, imageCheckDeadlineMs),
+      Promise.resolve(this.hydrate(docs)),
       this.labelsPerBarcode(M, docs),
     ]);
     for (const p of items) {
@@ -218,6 +262,223 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
       { $project: { _id: { $toString: "$_id" } } },
     ]).toArray();
     return rows.map((row) => row._id);
+  }
+
+  async getLabelIdsForProductTypes(
+    productTypes: string[],
+    subgroupId?: string,
+    query?: string,
+    classifications: Partial<Record<EcommerceClassification, string>> = {},
+  ): Promise<string[]> {
+    if (!productTypes.length) return [];
+    const connection = await this.conn();
+    const ecommMatch = activeEcommerceMatch(productTypes);
+    if (query?.trim()) {
+      const search = new RegExp(escapeRegex(query.trim()), "i");
+      ecommMatch.$and = [{ $or: ["ecommItemCode", "itemCode"].map((field) => ({ [field]: search })) }];
+    }
+    const selectedClassifications = Object.entries(classifications)
+      .filter((entry): entry is [EcommerceClassification, string] => Boolean(entry[1]?.trim()));
+    const classificationProjection = selectedClassifications.length
+      ? {
+          byWeave: 1,
+          byFabric: 1,
+          byCraft: 1,
+          byOccasion: 1,
+          byColour: 1,
+          weaveDescription: 1,
+          fabricDescription: 1,
+          craftDescription: 1,
+          occasionDescription: 1,
+          colourDescription: 1,
+          attributes: 1,
+        }
+      : {};
+    let ecommerceProducts = await connection.db!.collection<AnyDoc>(ERP_BARCODE_COLLECTIONS.ecommerceProducts)
+      .find(
+        ecommMatch,
+        {
+          projection: {
+            itemId: 1,
+            businessId: 1,
+            erpDocumentId: 1,
+            barcode: 1,
+            barcodes: 1,
+            ...classificationProjection,
+            _id: 0,
+          },
+        },
+      )
+      .toArray();
+    if (selectedClassifications.length) {
+      const names = await this.classificationNames(connection, ecommerceProducts);
+      ecommerceProducts = ecommerceProducts.filter((product) =>
+        selectedClassifications.every(([field, selected]) => {
+          const expected = selected.trim().toLocaleLowerCase();
+          return ecommerceClassificationValues(product, field).some((value) =>
+            (names.get(value) ?? value).toLocaleLowerCase() === expected,
+          );
+        }),
+      );
+    }
+    // The storefront shows exactly what the ecommerceproduct records point at: the barcodes saved on
+    // them (or a directly linked label). A record with neither shows nothing - never every label of its item.
+    const directLabelIds = new Set<string>();
+    const barcodeReferences: { codes: string[]; businessId?: string; itemId?: string }[] = [];
+    for (const product of ecommerceProducts) {
+      if (product.erpDocumentId != null) directLabelIds.add(String(product.erpDocumentId));
+      const codes = savedBarcodes(product);
+      if (!codes.length) continue;
+      barcodeReferences.push({
+        codes,
+        businessId: product.businessId == null ? undefined : String(product.businessId),
+        itemId: product.itemId == null ? undefined : String(product.itemId),
+      });
+    }
+    if (!directLabelIds.size && !barcodeReferences.length) return [];
+    if (subgroupId && barcodeReferences.length) {
+      const itemIds = [...new Set(barcodeReferences.flatMap((reference) => (reference.itemId ? [reference.itemId] : [])))]
+        .flatMap((itemId) => [itemId, toObjectIdOrString(itemId)]);
+      const items = await connection.db!.collection<{ _id: ErpId }>("items")
+        .find(
+          { _id: { $in: itemIds }, subgroup: { $in: [subgroupId, toObjectIdOrString(subgroupId)] } },
+          { projection: { _id: 1 } },
+        )
+        .toArray();
+      const matchingItemIds = new Set(items.map((item) => String(item._id)));
+      for (let i = barcodeReferences.length - 1; i >= 0; i--) {
+        const itemId = barcodeReferences[i].itemId;
+        if (!itemId || !matchingItemIds.has(itemId)) barcodeReferences.splice(i, 1);
+      }
+    }
+    // ERP ids may be stored as strings or ObjectIds, so both forms are matched.
+    const directFilter: Record<string, unknown> = {
+      $or: [{ _id: { $in: [...directLabelIds].flatMap((id) => [id, toObjectIdOrString(id)]) } }],
+    };
+    const [directLabels, barcodeLabelIds] = await Promise.all([
+      directLabelIds.size
+        ? connection.db!.collection(ERP_BARCODE_COLLECTIONS.labels).find(directFilter, { projection: { _id: 1 } }).toArray()
+        : Promise.resolve([]),
+      this.labelIdsForSavedBarcodes(connection, barcodeReferences),
+    ]);
+    return [...new Set([...directLabels.map((label) => String(label._id)), ...barcodeLabelIds])];
+  }
+
+  /**
+   * Labels for barcodes saved on e-commerce products. Barcode numbers repeat across businesses, so a
+   * label in the product's own business (original or current) wins; when that business has none, the
+   * other labels carrying the barcode are used (the ERP form accepts those too).
+   */
+  private async labelIdsForSavedBarcodes(
+    connection: Connection,
+    references: { codes: string[]; businessId?: string }[],
+  ): Promise<string[]> {
+    const codes = [...new Set(references.flatMap((reference) => reference.codes))];
+    if (!codes.length) return [];
+    // A barcode typed into the ERP form may differ in case ("8a1935" for 8A1935): match case-insensitively,
+    // through exact variants so the barcode index is still used.
+    const variants = [...new Set(codes.flatMap((code) => [code, code.toUpperCase(), code.toLowerCase()]))];
+    const labels = await connection.db!.collection<AnyDoc>(ERP_BARCODE_COLLECTIONS.labels)
+      .find(
+        { [B.barcode]: { $in: variants } },
+        { projection: { _id: 1, [B.barcode]: 1, [B.businessId]: 1, currentBusinessId: 1 } },
+      )
+      .toArray();
+    const byCode = new Map<string, AnyDoc[]>();
+    for (const label of labels) {
+      const code = String(label[B.barcode] ?? "").toUpperCase();
+      byCode.set(code, [...(byCode.get(code) ?? []), label]);
+    }
+    const ids = new Set<string>();
+    for (const { codes: productCodes, businessId } of references) {
+      for (const code of productCodes) {
+        const candidates = byCode.get(code.toUpperCase()) ?? [];
+        const own = businessId
+          ? candidates.filter((label) => String(label[B.businessId] ?? "") === businessId || String(label.currentBusinessId ?? "") === businessId)
+          : [];
+        for (const label of own.length ? own : candidates) ids.add(String(label._id));
+      }
+    }
+    return [...ids];
+  }
+
+  async getProductTypeClassifications(
+    productTypes: string[],
+  ): Promise<Partial<Record<EcommerceClassification, FacetOption[]>>> {
+    if (!productTypes.length) return {};
+    const connection = await this.conn();
+    const products = await connection.db!.collection<AnyDoc>(ERP_BARCODE_COLLECTIONS.ecommerceProducts)
+      .find(
+        activeEcommerceMatch(productTypes),
+        {
+          projection: {
+            byWeave: 1,
+            byFabric: 1,
+            byCraft: 1,
+            byOccasion: 1,
+            byColour: 1,
+            weaveDescription: 1,
+            fabricDescription: 1,
+            craftDescription: 1,
+            occasionDescription: 1,
+            colourDescription: 1,
+            attributes: 1,
+            _id: 0,
+          },
+        },
+      )
+      .toArray();
+    const names = await this.classificationNames(connection, products);
+    const facets: Partial<Record<EcommerceClassification, FacetOption[]>> = {};
+    for (const field of Object.keys(ECOMMERCE_CLASSIFICATIONS) as EcommerceClassification[]) {
+      const counts = new Map<string, number>();
+      for (const product of products) {
+        const values = new Set(ecommerceClassificationValues(product, field).map((value) => names.get(value) ?? value));
+        for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+      facets[field] = [...counts]
+        .map(([value, count]) => ({ value, label: value, count }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+    return facets;
+  }
+
+  async getProductTypeSubgroups(productTypes: string[]): Promise<FacetOption[]> {
+    if (!productTypes.length) return [];
+    const connection = await this.conn();
+    const ecommerceProducts = await connection.db!.collection(ERP_BARCODE_COLLECTIONS.ecommerceProducts)
+      .find(
+        activeEcommerceMatch(productTypes),
+        { projection: { itemId: 1, businessId: 1, _id: 0 } },
+      )
+      .toArray();
+    const itemIds = [...new Set(ecommerceProducts.flatMap((product) => product.itemId == null ? [] : [String(product.itemId)]))]
+      .flatMap((itemId) => [itemId, toObjectIdOrString(itemId)]);
+    if (!itemIds.length) return [];
+    const items = await connection.db!.collection<{ _id: ErpId; subgroup?: unknown }>("items")
+      .find({ _id: { $in: itemIds }, subgroup: { $nin: [null, ""] } }, { projection: { _id: 1, subgroup: 1 } })
+      .toArray();
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      if (item.subgroup == null) continue;
+      const subgroupId = String(item.subgroup);
+      counts.set(subgroupId, (counts.get(subgroupId) ?? 0) + 1);
+    }
+    if (!counts.size) return [];
+    const subgroupIds = [...counts.keys()].flatMap((id) => [id, toObjectIdOrString(id)]);
+    const subgroups = await connection.db!.collection<{ _id: ErpId; name?: unknown; subgroupName?: unknown }>("subgroups")
+      .find({ _id: { $in: subgroupIds } }, { projection: { _id: 1, name: 1, subgroupName: 1 } })
+      .toArray();
+    const names = new Map(subgroups.map((subgroup) => [
+      String(subgroup._id),
+      typeof subgroup.name === "string" && subgroup.name.trim()
+        ? subgroup.name.trim()
+        : typeof subgroup.subgroupName === "string" && subgroup.subgroupName.trim()
+          ? subgroup.subgroupName.trim()
+          : String(subgroup._id),
+    ]));
+    return [...counts].map(([value, count]) => ({ value, label: names.get(value) ?? value, count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 
   /**
@@ -306,7 +567,7 @@ export class MongoBarcodeLabelRepository implements BarcodeLabelRepository {
       { $project: PROJECTION },
       ...JOIN_STAGES,
     ]);
-    const { items } = await this.hydrate(docs);
+    const { items } = this.hydrate(docs);
     const byBarcode = new Map<string, BarcodeProduct>();
     for (const item of items) if (!byBarcode.has(item.barcode)) byBarcode.set(item.barcode, item);
     return uniqueBarcodes.flatMap((barcode) => {

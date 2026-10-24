@@ -90,7 +90,7 @@ export default function AssistantPage() {
 
   return (
     <div>
-      <PageHeader title="AI Assistant" subtitle="Ask about orders, products, stock and sales. Answers come from live store data; the assistant cannot change anything.">
+      <PageHeader title="AI Assistant">
         {messages.length > 0 && <Button variant="outline" size="sm" onClick={reset}>New chat</Button>}
       </PageHeader>
       {status.data && !status.data.hasApiKey && (
@@ -103,7 +103,6 @@ export default function AssistantPage() {
           {messages.length === 0 ? (
             <div className="mx-auto max-w-xl py-6 text-center">
               <p className="font-heading text-2xl text-olive">What would you like to know?</p>
-              {!!status.data?.covers.length && <p className="mt-1 text-xs text-muted">Can look up: {status.data.covers.join(" · ")}</p>}
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 {SUGGESTIONS.map((s) => (
                   <button key={s} type="button" onClick={() => send(s)} className="rounded-sm border border-line p-3 text-left text-sm text-ink/80 hover:border-gold hover:bg-gold/5">{s}</button>

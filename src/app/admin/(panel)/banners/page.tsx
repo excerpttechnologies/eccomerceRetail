@@ -9,7 +9,6 @@ export default function BannersPage() {
     <ResourcePage<Banner>
       resource="banners"
       title="Banners"
-      subtitle="Hero carousel, lifestyle strip and promo banners. Schedule with start/end dates."
       filters={[{ key: "placement", label: "Placement", options: ["hero", "lifestyle", "category", "promo"].map((v) => ({ value: v, label: v })) }]}
       columns={[
         { key: "image", label: "", render: (r) => r.image?.desktop ? <img src={r.image.desktop} alt="" className="h-10 w-16 rounded-sm object-cover" /> : null },

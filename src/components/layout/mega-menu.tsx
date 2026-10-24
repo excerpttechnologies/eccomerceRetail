@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn, isRemoteImageSource } from "@/lib/utils";
 import type { MenuNode } from "@/repositories/web/site.repository";
 
 /** Full-width mega menu. Columns = child "group" nodes; leaves = links (attribute filters). */
@@ -39,7 +39,7 @@ export function MegaMenu({ item, open }: { item: MenuNode; open: boolean }) {
         {image && (
           <Link href={item.href ?? "#"} className="col-span-3 group relative block overflow-hidden rounded-sm">
             <div className="relative aspect-[4/5]">
-              <Image src={image} alt={item.label} fill sizes="300px" className="object-cover transition-transform duration-700 group-hover:scale-105" />
+              <Image src={image} alt={item.label} fill unoptimized={isRemoteImageSource(image)} sizes="300px" className="object-cover transition-transform duration-700 group-hover:scale-105" />
             </div>
             <span className="absolute bottom-3 left-3 rounded-sm bg-ivory/90 px-3 py-1 text-xs uppercase tracking-widest text-olive">Explore {item.label}</span>
           </Link>

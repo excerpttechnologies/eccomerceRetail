@@ -16,19 +16,65 @@ ERP_DB_NAME=grooretailerp1
 | --- | --- | --- | --- |
 | Products, categories, stores | `ERP_DB_NAME` (master connection) | seeded copy in `WEB_DB_NAME`, writable by `npm run seed` | RetailERP, **read-only** (`readOnlyGuard` throws on any write) |
 | Field names | `src/lib/erp-mapping.ts` | same | same |
-| Carts, wishlists, orders, banners, menu, CMS, settings, reviews, admin users, audit | `WEB_DB_NAME` (web connection) | writable | writable |
+| Carts, wishlists, website checkout orders, banners, menu, CMS, settings, reviews, admin users, audit | `WEB_DB_NAME` (web connection) | writable | writable |
+| Admin → Orders | `ERP_DB_NAME.orders` (RetailERP online orders) | RetailERP connection, read-only | RetailERP connection, read-only |
+
+Admin → Settings keeps editable storefront configuration in the web database and
+shows live, read-only RetailERP counts for active items, inventory, orders and
+customers. It also reads the ERP `sitesettings`, `storefrontSettings` and active
+`branches` collections for a live settings snapshot and branch selector. The ERP
+snapshot refreshes automatically; website-owned settings remain writable only in
+the web database, and ERP connection errors are reported without preventing
+changes to website-owned settings.
 
 > **Admin → Products already reads real RetailERP data** from `grooretailerp1.barcodeLabel`,
 > whatever `DATA_SOURCE` is set to. See [barcodeLabel-product-mapping.md](barcodeLabel-product-mapping.md)
 > for the verified field names, relationships and image rules. The storefront still follows
 > `DATA_SOURCE` and the placeholder `PRODUCT_FIELDS` below.
+>
+> The Products edit drawer also reads RetailERP `ecommerceproduct`, joined to each
+> `barcodeLabel` by `itemId` and `businessId`. Its `displayName`, pricing overrides,
+> descriptions, publication flags, SEO values and classification references prefill the
+> editor. Edits are saved to the website-owned `productWebMeta` overlay; RetailERP remains
+> read-only from the website.
 
-The homepage's Sarees/Fabrics 8A and 9A image rails also read from `barcodeLabel`,
-matching barcode prefixes and ERP product groups. This keeps those photos available
-even when the generic `products` collection is empty or `DATA_SOURCE=mock`; only
-loadable ERP images are shown. Clicking the Sarees or Fabrics navigation opens a
-paginated catalogue of loadable ERP images filtered by the matching ERP group/business;
-the homepage image rails remain unchanged.
+### Business e-commerce export
+
+An authenticated, read-only JSON export for one ERP business is available at:
+
+```text
+GET /api/v1/admin/erp/business-export?businessId=<24-character-business-id>&limit=5000
+```
+
+It returns the matching ERP barcode labels, their website-owned `productWebMeta` overlay,
+unique classification values (`byWeave`, `byFabric`, `byCraft`, `byOccasion`, `byColour`),
+and counts for products returned, items with e-commerce metadata, and items with `byFabric`
+populated. E-commerce metadata counts a label when it has at least one non-empty editable
+website product field (or is explicitly inactive); the schema's default `isActive: true` alone
+does not count. Classification values are split on commas, trimmed and deduplicated. Counts
+are per barcode-label row; multiple labels sharing a barcode each count as an item.
+
+The endpoint requires the application's own admin session with `products:read`, and uses
+`ERP_MONGODB_URI` / `ERP_DB_NAME` for RetailERP plus `MONGODB_URI` / `WEB_DB_NAME` for the
+website metadata. `limit` is capped at 5,000; `meta.truncated` indicates if more ERP records
+exist for that business. It does not proxy requests or use cookies for `erp.wovenessence.in`.
+
+Admin → Reviews reads live product-level counts and ratings from RetailERP `items.reviews`.
+RetailERP stores review settings and aggregates only, not individual customer reviews or
+moderation records; website-submitted reviews remain in the separate web database.
+
+The homepage's Sarees, Fabrics, Plain Fabrics and Dupatta category tiles link to
+paginated catalogues built from ERP barcode labels. Category membership comes from
+`ecommerceproduct.productType` and an active e-commerce status, joined to `barcodeLabel` by
+the exact `itemId` and `businessId` pair. Subgroup filters are populated from each
+matching ERP item's `subgroup` reference. The catalogue then applies ERP stock
+status to mark unavailable labels while still displaying their barcodes and images.
+Search also matches the e-commerce item code. A matching e-commerce product's image is used when
+available and served from an allowed ERP/Spaces host; otherwise the storefront falls back to the
+barcode-derived ERP image URL. Product-Ecom display name, description, item code and
+weave/fabric/craft/occasion/colour classifications are also shown on the cards; the classification
+filters use live active e-commerce records and their linked ERP classification options.
+This works even when the generic `products` collection is empty or `DATA_SOURCE=mock`.
 
 ## 1. Discover the real field names
 
@@ -119,11 +165,39 @@ so URLs stay stable when a product is renamed in the ERP.
 
 ## 6. Website orders → ERP (future write-back)
 
-Web orders are stored in `WEB_DB_NAME.orders` **using RetailERP field names**
+Website checkout orders are stored in `WEB_DB_NAME.orders` **using RetailERP field names**
 (`orderNo`, `customerId`, `items[].sku`, `netAmount`, `paymentMode`, ...) via
 `buildOrderDoc()`. When RetailERP exposes a sales-order API or an import
 collection, the sync job only has to copy documents — no re-mapping. The same holds
 for `customers` (`customerName`, `mobile`, `addresses[]`, `loyaltyPoints`).
+
+The Admin → Orders page reads the verified online-order collection
+`ERP_DB_NAME.orders` directly. ERP `orderNumber`, `lines`, `amounts`, `payment`,
+`shippingAddress`, `status`, and `timeline` are mapped to the admin order view.
+The view is read-only because ERP status/tracking write-back is not configured.
+Website checkout orders in `WEB_DB_NAME.orders` are not automatically synced into
+RetailERP and therefore do not appear in this ERP-backed admin list.
+
+The dashboard uses the same RetailERP orders for sales totals, status counts,
+best sellers, latest orders and out-for-delivery orders. Customer totals come from
+`ERP_DB_NAME.customers`, and stock counts come from active `ERP_DB_NAME.items`
+using `inventory.availableStock` (falling back to `inventory.currentStock`).
+Admin → Inventory reads and aggregates active item stock directly from that same
+RetailERP `items` collection on every API request; low/out-of-stock rows and summary
+counts never fall back to the mock catalogue. The page refreshes the live query once
+per minute. Alert rows resolve ERP item code, barcode, and description through
+`items.barcodeManagement.sourceBarcodeLabel` → `barcodeLabel._id`, using the label's
+`itemCode` and `barcodeNo` fields as fallbacks to the item master's
+`identity.itemCode` and `identity.productName` fields. The inventory barcode column
+shows only the linked label's original `barcodeNo`; it does not substitute the
+item's `barcodeManagement.internalBarcode` or another identifier when no label is linked.
+Inventory category starts with `identity.productType`; explicit `PLAIN FABRIC(S)` and
+`FABRIC(S)` labels in the ERP product name take precedence when the generic ERP type
+does not match the item.
+MongoDB document IDs are never shown as item codes or barcodes. Its
+separate web-meta sync only updates website-owned product metadata.
+Reviews, enquiries and abandoned carts are website-owned activity and continue to
+be counted from `WEB_DB_NAME`.
 
 ## 7. Mapping a collection that does not exist yet
 
@@ -138,8 +212,8 @@ If the ERP splits data differently (e.g. `item_master` + `item_stock` + `item_pr
 
 | Data | Owner | Editable in admin? |
 | --- | --- | --- |
-| Product name, price, MRP, GST, stock, attributes, images | RetailERP | No — shown with a "Synced from RetailERP" badge |
-| Product slug, SEO title/description, featured flag, extra images | Website (`productWebMeta`) | Yes — Products → row → Web settings |
+| ERP product name, price, MRP, GST, stock, attributes, images | RetailERP | No — source data remains read-only |
+| Product display name, item name, active flag, slug, SEO, featured flag, extra images | Website (`productWebMeta`) | Yes — Products → row → Edit; inactive barcode items are omitted from storefront catalogs |
 | Categories, stores | RetailERP | No |
 | Menu, banners, collections, homepage sections, CMS, testimonials, coupons | Website | Yes |
 | Orders, customers (website registrations) | Website, stored with ERP field names | Yes (status workflow, AWB) |

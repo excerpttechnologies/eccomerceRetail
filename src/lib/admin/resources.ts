@@ -95,6 +95,7 @@ const Coupon = z.object({
   validFrom: z.coerce.date().nullable().optional(),
   validTo: z.coerce.date().nullable().optional(),
   isActive: z.boolean().default(true),
+  isAdvertised: z.boolean().default(false),
 });
 const Review = z.object({ status: z.enum(["pending", "approved", "rejected"]), title: z.string().optional(), body: z.string().optional() });
 const Enquiry = z.object({ status: z.enum(["new", "in_progress", "closed"]) });

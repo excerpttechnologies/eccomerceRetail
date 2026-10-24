@@ -26,6 +26,7 @@ export class MongoOrderRepository implements OrderRepository {
   async create(input: CreateOrderInput): Promise<Order> {
     const M = await this.M();
     const orderNo = await this.nextOrderNo();
+    const initialStatus = input.orderStatus ?? "Placed";
     const doc = buildOrderDoc({
       orderNo,
       customerId: toObjectIdOrString(input.customerId),
@@ -48,15 +49,25 @@ export class MongoOrderRepository implements OrderRepository {
       shippingCharge: input.shippingCharge,
       netAmount: input.netAmount,
       paymentMode: input.paymentMode,
-      paymentStatus: input.paymentMode === "COD" ? "Pending" : "Pending",
-      orderStatus: "Placed",
+      paymentStatus: input.paymentStatus ?? "Pending",
+      orderStatus: initialStatus,
       shippingAddress: addressToDoc(input.shippingAddress),
       awbNo: undefined,
       storeId: input.storeId ? toObjectIdOrString(input.storeId) : undefined,
       couponCode: input.couponCode,
       createdAt: new Date(),
     });
-    const created = await M.create({ ...doc, statusHistory: [{ status: "Placed", by: "system", at: new Date() }] });
+    const created = await M.create({
+      ...doc,
+      ...(input.paymentGatewayOrderId ? { paymentGatewayOrderId: input.paymentGatewayOrderId } : {}),
+      ...(input.paymentTransactionId ? { paymentTransactionId: input.paymentTransactionId } : {}),
+      statusHistory: [{
+        status: initialStatus,
+        by: "system",
+        at: new Date(),
+        ...(input.paymentTransactionId ? { note: "Paid online via Razorpay" } : {}),
+      }],
+    });
     return mapOrder(created.toObject());
   }
 
@@ -69,9 +80,13 @@ export class MongoOrderRepository implements OrderRepository {
     return this.paginate({ [O.customerId]: toObjectIdOrString(customerId) }, params);
   }
 
-  async list(params: { status?: OrderStatus; q?: string; from?: Date; to?: Date; page?: number; limit?: number }) {
+  async list(params: { status?: OrderStatus; paymentStatus?: Order["paymentStatus"]; q?: string; from?: Date; to?: Date; page?: number; limit?: number }) {
     const match: AnyDoc = {};
     if (params.status) match[O.orderStatus] = params.status;
+    if (params.paymentStatus) {
+      match[O.paymentStatus] = params.paymentStatus;
+      if (params.paymentStatus === "Pending") match[O.orderStatus] = { $nin: ["Cancelled", "Returned"] };
+    }
     if (params.q?.trim()) match[O.orderNo] = new RegExp(escapeRegex(params.q.trim()), "i");
     if (params.from || params.to) {
       match[O.createdAt] = {};
@@ -106,13 +121,6 @@ export class MongoOrderRepository implements OrderRepository {
   async setAwb(orderNo: string, awbNo: string): Promise<Order | null> {
     const doc = await (await this.M())
       .findOneAndUpdate({ [O.orderNo]: orderNo }, { $set: { [O.awbNo]: awbNo } }, { new: true })
-      .lean<AnyDoc>();
-    return doc ? mapOrder(doc) : null;
-  }
-
-  async setCourierName(orderNo: string, courierName: string): Promise<Order | null> {
-    const doc = await (await this.M())
-      .findOneAndUpdate({ [O.orderNo]: orderNo }, { $set: { courierName } }, { new: true })
       .lean<AnyDoc>();
     return doc ? mapOrder(doc) : null;
   }

@@ -8,6 +8,7 @@ import { ErpImageGallery } from "@/components/home/sections";
 import { ProductGrid } from "@/components/product/product-grid";
 import { FacetSidebar } from "./facet-sidebar";
 import { Pagination, SortSelect } from "./toolbar";
+import { isRemoteImageSource } from "@/lib/utils";
 
 interface Props {
   title: string;
@@ -29,7 +30,7 @@ export async function Listing({ title, description, banner, breadcrumbs, params,
       <Breadcrumbs items={breadcrumbs} />
       {banner ? (
         <div className="relative mt-4 aspect-[3/1] overflow-hidden rounded-sm bg-line sm:aspect-[16/4]">
-          <Image src={banner} alt={title} fill priority sizes="100vw" className="object-cover" />
+          <Image src={banner} alt={title} fill priority unoptimized={isRemoteImageSource(banner)} sizes="100vw" className="object-cover" />
           <div className="absolute inset-0 flex flex-col justify-center bg-ink/30 px-8 text-ivory">
             <h1 className="font-heading text-4xl text-ivory sm:text-5xl">{title}</h1>
             {description && <p className="mt-2 max-w-lg text-sm text-ivory/85">{description}</p>}

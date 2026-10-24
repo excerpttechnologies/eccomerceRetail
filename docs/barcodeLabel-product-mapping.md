@@ -9,7 +9,15 @@ coverage from a 3,000-document sample, counts from full-collection aggregations)
 | Database | `grooretailerp1` (env `ERP_MONGODB_URI` / alias `ERP_MONGO_URI`, `ERP_DB_NAME`) |
 | Collection | `barcodeLabel` — read-only from the website |
 | Code | mapping `src/lib/erp-mapping.ts` (`BARCODE_LABEL_FIELDS`, `mapBarcodeLabel`), images `src/lib/erp-images.ts`, queries `src/repositories/mongo/barcode-label.repository.ts` |
-| API | `GET /api/v1/admin/products`, `GET /api/v1/admin/products/facets`, `PATCH /api/v1/admin/products` (web overlay only) — all behind `requireAdmin("products:*")` |
+| API | `GET /api/v1/admin/products`, `GET /api/v1/admin/products/facets`, `PATCH /api/v1/admin/products` (website overlay only) — all behind `requireAdmin("products:*")` |
+
+The Products API also looks up the ERP `ecommerceProducts` catalog by the exact label ID:
+`ecommerceProducts.erpDocumentId` → `barcodeLabel._id`. It returns this as `erpEcommerce`
+alongside the existing website `web` overlay. The edit drawer prefills from website overrides
+first, then ERP e-commerce values, then the barcode-label data. If an ERP catalog record is
+found, the drawer confirms that it was fetched; if not, the drawer remains editable and says
+that no ERP e-commerce record was found. Product edits in this app continue to save only to
+the website-owned `productWebMeta` collection; this app does not write to RetailERP.
 
 ## What a row is
 
@@ -58,28 +66,27 @@ Empty values are omitted from the API response, so the UI never prints `undefine
 
 ## Images
 
-The image always comes from the **same document** as the barcode. `imageUrl` is tried first, then
-`filePath`. Only hosts in `ERP_IMAGE_SPACES_HOSTS` or `ERP_IMAGE_BASE` are considered; each
-candidate is checked server-side with a 1-byte ranged GET, and the first one that loads is returned.
+For storefront category cards, a matching active `ecommerceproduct` image (`image`, `images` or
+`imageUrl`) is preferred. It is matched by the same exact `itemId` and `businessId` pair as the
+category entry, normalized using the configured ERP image base/Spaces settings, and accepted only
+from an allowed image host. If it is absent or unusable, the card falls back to
+`https://erp.wovenessence.in/august_8A_images/<barcode>.jpg`, built from the barcode. The card
+shows its photo-unavailable state if that fallback cannot load.
 
-- **Caching:** a working image is cached 6 h, a 403/404 for 15 min. 429/5xx answers are not cached.
-- **Unreachable hosts:** a host that times out or does not resolve is skipped for 60 s.
-- **Page deadline:** a page waits at most 2.5 s for checks. Past that, unchecked candidates go to
-  the browser as-is and the checks finish in the background.
+The `barcodeLabel.imageUrl` and `barcodeLabel.filePath` fields are not used as storefront image
+sources; their values are summarized below. The barcode URL remains the fallback for these records.
 
-| `imageUrl` value | Docs | Handling | Result |
-| --- | ---: | --- | --- |
-| `https://templeimg.blr1.digitaloceanspaces.com/<key>?X-Amz-…` | 15,593 | Presigned on 7–8 Aug with `X-Amz-Expires=300`, so every stored signature is expired. The query is stripped; if `DO_SPACES_KEY`/`SECRET` are set, a fresh presigned URL is made instead | ~55% public-read objects load. ~39% are private (403) and need the keys. ~6% do not exist (404) |
-| `/august_8A_images/<barcode>.jpg` | 3,136 | Served by the deployed RetailERP app: `ERP_IMAGE_BASE` + path | all sampled load |
-| `data:image/jpeg;base64,…` | 4,768 | One identical 2,042-byte grey "image" icon (sha256 `ec0d9181…`): a placeholder, not a product photo | "no image" fallback |
-| `/api/files/<hash>.jpg` | 5 | The ERP's current upload path, so the newest labels use it. The deployed app answers 401 (needs its own login); `filePath` on ERP_IMAGE_BASE and on the Spaces bucket is 404 | fallback until the ERP serves these publicly or issues a read token |
-| `http://wovenessencemobile.etpl.ai/uploads/…` | 11 | Host no longer resolves; `filePath` on ERP_IMAGE_BASE is 404 | fallback |
-| empty | 3,975 | — | fallback |
+| Stored ERP image value | Docs | Storefront handling |
+| --- | ---: | --- |
+| `https://templeimg.blr1.digitaloceanspaces.com/<key>?X-Amz-…` | 15,593 | Not used from barcode labels; an allowed matching e-commerce image can use the configured Spaces host |
+| `/august_8A_images/<barcode>.jpg` | 3,136 | Not used as a stored barcode-label value; URL is generated from the label barcode |
+| `data:image/jpeg;base64,…` | 4,768 | Not used from barcode labels; an e-commerce image may use a supported data URI |
+| `/api/files/<hash>.jpg` | 5 | Not used from barcode labels; barcode URL is used instead |
+| `http://wovenessencemobile.etpl.ai/uploads/…` | 11 | Not used from barcode labels; barcode URL is used instead |
+| empty | 3,975 | URL is generated from the label barcode |
 
-Thumbnails go through `next/image`, so the table downloads ~1 KB WebP thumbnails instead of
-~200 KB JPEGs. The allowed hosts are the exact `ERP_IMAGE_SPACES_HOSTS` plus the `ERP_IMAGE_BASE`
-host (see `next.config.ts`). There is no wildcard, because `/_next/image` is public and would
-otherwise proxy any bucket.
+Barcode product cards load the JPEG directly from the ERP host and directory above; they do not use
+`next/image` optimization or redirect through an image proxy.
 
 ## Relationships checked and not used
 
@@ -93,25 +100,30 @@ otherwise proxy any bucket.
 
 ## Storefront category groups
 
-Verified read-only from the modern `items`, `groups`, `subgroups`, and `barcodeLabel` collections
-on 2026-10-14. `items.group` is an ObjectId reference to `groups._id`; `items.subgroup` references
-`subgroups._id`. The reliable bridge to the admin product record is
-`items.barcodeManagement.sourceBarcodeLabel` (ObjectId) → `barcodeLabel._id`. Category results
-use that bridge, then render the existing barcode-label description, price, availability, and
-image. Item Code or barcode text is not used as a fallback because it is not unique.
+Storefront category membership follows the ERP e-commerce product classification:
 
-| Storefront category | Verified ERP `groups._id` | Linked barcode labels |
-| --- | --- | ---: |
-| Sarees | `6a9905f8ee2f8f36193a0ce2` | 88 |
-| Fabrics | `6a9904d4ee2f8f36193a0a52` | 47 |
-| Plain Fabrics | `6a990579ee2f8f36193a0c14` | 65 |
-| Dupatta | `6a990672ee2f8f36193a0db0` | 20 |
+| Storefront category | `ecommerceproduct.productType` |
+| --- | --- |
+| Sarees | `SAREES` |
+| Fabrics | `FABRICS` |
+| Plain Fabrics | `PLAIN FABRICS` |
+| Dupatta | `DUPATTA` |
 
-These are exact ERP group IDs with direct barcode-label references in the inspected branch; other
-same-named groups are excluded. Fabrics and Plain Fabrics are separate groups. Some classified ERP
-items have no `sourceBarcodeLabel` reference and are excluded rather than guessed into the public
-catalogue. Category listings retain referenced labels when an image is missing or unavailable, so
-the storefront's existing image fallback is used. No ERP or ecommerce records are written.
+Active e-commerce products (active `status` or `isActive: true`) are included, including records not marked as published, because
+unpublished entries were explicitly requested for the storefront. Their barcode labels are resolved
+by the exact `itemId` and `businessId` pair, the same references used by the admin product editor.
+This keeps category assignment consistent with RetailERP's Product-Ecom screen; the public
+catalogue does not infer categories from barcode prefixes, descriptions, item codes or a similarly
+named inventory group. Product-Ecom supplies the storefront display name, description, item code,
+classification names and image when available; the barcode label remains the source for barcode,
+price and stock, and supplies the fallback image URL. The Weave, Fabric, Craft, Occasion and Color
+filters resolve the e-commerce classification references through `productclassificationoption`.
+E-commerce item codes are searchable and resolve to their linked barcode labels. Subgroup
+filters are loaded from the matching ERP `items.subgroup` references and resolved
+through `subgroups._id`; selecting a subgroup filters the same e-commerce products, rather
+than guessing from the barcode label's older group field. Existing stock checks still exclude sold,
+void and unavailable labels are still visible but cannot be added to the bag. No ERP or e-commerce
+records are written.
 
 ## Queries
 

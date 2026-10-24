@@ -16,7 +16,7 @@ export default async function Success({ params }: { params: Promise<{ orderNo: s
       <CheckCircle2 className="mx-auto h-14 w-14 text-olive" />
       <h1 className="mt-4 text-4xl">Thank you for your order</h1>
       <p className="mt-2 text-sm text-muted">Order <b className="text-olive">{order.orderNo}</b> · {order.paymentMode === "COD" ? "Cash on delivery" : "Paid online"} · {formatINR(order.netAmount)}</p>
-      <p className="mt-4 text-sm text-ink/80">We’ll WhatsApp you at {order.shippingAddress.phone} when it ships to {order.shippingAddress.city}.</p>
+      <p className="mt-4 text-sm text-ink/80">We’ll WhatsApp and SMS you at {order.shippingAddress.phone} when it ships to {order.shippingAddress.city}.</p>
       <ul className="mx-auto mt-8 max-w-md divide-y divide-line rounded-sm border border-line text-left text-sm">
         {order.items.map((it) => (
           <li key={it.sku} className="flex justify-between px-4 py-3"><span>{it.name} × {it.qty}</span><span>{formatINR(it.amount)}</span></li>

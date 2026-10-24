@@ -4,6 +4,7 @@ import { createErpAdapter } from "./adapters/erp.adapter";
 import { createMockAdapter } from "./adapters/mock.adapter";
 import { MongoBarcodeLabelRepository } from "./mongo/barcode-label.repository";
 import { MongoCustomerRepository } from "./mongo/customer.repository";
+import { MongoErpOrderRepository } from "./mongo/erp-order.repository";
 import { MongoOrderRepository } from "./mongo/order.repository";
 import { SiteRepository } from "./web/site.repository";
 import type { BarcodeLabelRepository, CustomerRepository, MasterDataSource, OrderRepository } from "./types";
@@ -12,6 +13,7 @@ type Registry = {
   master?: MasterDataSource;
   barcodeLabels?: BarcodeLabelRepository;
   customers?: CustomerRepository;
+  erpOrders?: MongoErpOrderRepository;
   orders?: OrderRepository;
   site?: SiteRepository;
 };
@@ -35,6 +37,10 @@ export function getCustomers(): CustomerRepository {
 }
 export function getOrders(): OrderRepository {
   return (reg.orders ??= new MongoOrderRepository(getWebConnection));
+}
+/** RetailERP sales orders shown read-only in Admin → Orders. */
+export function getErpOrders(): MongoErpOrderRepository {
+  return (reg.erpOrders ??= new MongoErpOrderRepository(getErpConnection));
 }
 export function getSite(): SiteRepository {
   if (!reg.site || typeof reg.site.homepageSection !== "function") {

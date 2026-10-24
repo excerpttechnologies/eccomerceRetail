@@ -18,6 +18,7 @@ import {
 } from "@/models/web/content.models";
 import { FILTER_KEYS, type FilterKey, type ProductListParams } from "@/domain/types";
 import { DEFAULT_MENU } from "@/lib/default-menu";
+import { isClassificationOptionDeleted } from "@/lib/admin/product-classification-options";
 
 export interface MenuNode {
   id: string;
@@ -49,9 +50,9 @@ export class SiteRepository {
   }
 
   async menu(): Promise<MenuNode[]> {
-    const M = MenuItemModel(await this.conn());
+    const conn = await this.conn();
+    const M = MenuItemModel(conn);
     const items = (await M.find({ isActive: true }).sort({ sortOrder: 1 }).lean()) as MenuItemDoc[];
-    if (!items.length) return DEFAULT_MENU;
     const nodes = new Map<string, MenuNode>();
     for (const it of items) {
       nodes.set(String(it._id), {
@@ -71,7 +72,38 @@ export class SiteRepository {
       if (parent) parent.children.push(node);
       else roots.push(node);
     }
-    return roots.length ? roots : DEFAULT_MENU;
+
+    const menu = roots.length ? roots : structuredClone(DEFAULT_MENU);
+    const settings = await SiteSettingsModel(conn)
+      .findOne({ key: "default" }, { classificationOptions: 1, deletedClassificationOptions: 1 })
+      .lean();
+    const deletedOptions = settings?.deletedClassificationOptions ?? [];
+    for (const option of deletedOptions) {
+      const top = menu.find((node) => normalizeMenuLabel(node.label) === normalizeMenuLabel(option.productType));
+      const group = top?.children.find((node) =>
+        node.kind === "group" && normalizeMenuLabel(node.label) === normalizeMenuLabel(option.field));
+      if (group) {
+        group.children = group.children.filter((node) => node.label.toLowerCase() !== option.value.toLowerCase());
+      }
+    }
+    for (const option of settings?.classificationOptions ?? []) {
+      if (isClassificationOptionDeleted(deletedOptions, option.productType, option.field, option.value)) continue;
+      const top = menu.find((node) => normalizeMenuLabel(node.label) === normalizeMenuLabel(option.productType));
+      const group = top?.children.find((node) =>
+        node.kind === "group" && normalizeMenuLabel(node.label) === normalizeMenuLabel(option.field));
+      if (!group || group.children.some((node) => node.label.toLocaleLowerCase() === option.value.toLocaleLowerCase())) continue;
+
+      const categorySlug = top?.href?.match(/^\/collections\/([^/?#]+)/)?.[1] ?? menuCategorySlug(option.productType);
+      const filterKey = option.field === "By colour" ? "color" : option.field.slice(3).toLocaleLowerCase();
+      group.children.push({
+        id: `${group.id}-custom-${group.children.length + 1}`,
+        label: option.value,
+        kind: "link",
+        href: `/collections/${categorySlug}?${filterKey}=${encodeURIComponent(option.value)}`,
+        children: [],
+      });
+    }
+    return menu;
   }
 
   async banners(placement: BannerDoc["placement"]): Promise<BannerDoc[]> {
@@ -127,6 +159,15 @@ export class SiteRepository {
       .sort({ sortOrder: 1 })
       .lean()) as CmsPageDoc[];
   }
+}
+
+function normalizeMenuLabel(label: string): string {
+  return label.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+function menuCategorySlug(productType: string): string {
+  if (productType === "PLAIN FABRICS") return "plain-fabrics";
+  return productType.toLocaleLowerCase();
 }
 
 /** Translate a curated collection's rules into repository list params. */

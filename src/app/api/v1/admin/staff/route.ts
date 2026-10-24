@@ -9,17 +9,18 @@ import { escapeRegex } from "@/lib/utils";
 import { getWebConnection, isValidObjectId } from "@/lib/db";
 import { getMasterData } from "@/repositories";
 import { AdminUserModel, RoleModel } from "@/models/web/commerce.models";
+import { indianMobileSchema } from "@/lib/validation/indian-mobile";
 
 export const dynamic = "force-dynamic";
 
 const profileInput = z.object({
   designation: z.string().trim().max(120).optional(),
   branch: z.string().trim().optional(),
-  mobile: z.string().trim().max(40).optional(),
+  mobile: indianMobileSchema,
   joiningDate: z.coerce.date().nullable().optional(),
   photoUrl: z.string().trim().max(2048).optional(),
   address: z.string().trim().max(1000).optional(),
-  emergencyContact: z.string().trim().max(200).optional(),
+  emergencyContact: indianMobileSchema,
   notes: z.string().trim().max(2000).optional(),
 });
 

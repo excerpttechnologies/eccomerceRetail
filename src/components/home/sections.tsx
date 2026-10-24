@@ -7,8 +7,10 @@ import type { SiteSettings } from "@/repositories/web/site.repository";
 import { Logo } from "@/components/Logo";
 import { SectionHeading } from "@/components/ui/section-heading";
 import { ProductRail } from "@/components/product/product-rail";
+import { BarcodeProductGrid } from "@/components/product/barcode-product-grid";
 import { ContactForm } from "@/components/account/contact-form";
 import { NewsletterForm } from "./newsletter-form";
+import { isRemoteImageSource } from "@/lib/utils";
 
 export const Wrap = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <section className={`mx-auto max-w-site px-4 sm:px-6 ${className}`}>{children}</section>
@@ -46,7 +48,7 @@ export function CategoryTiles({ categories, title, subtitle }: { categories: Cat
         {categories.map((c, i) => (
           <Link key={c.id} href={`/collections/${c.slug}`} className={`group relative block overflow-hidden rounded-sm bg-line ${i === 0 ? "md:row-span-2" : ""}`}>
             <div className={`relative ${i === 0 ? "aspect-[3/4] md:aspect-[3/5]" : "aspect-[3/4] md:aspect-[4/3]"}`}>
-              {c.image && <Image src={c.image} alt={c.name} fill sizes="(min-width: 768px) 25vw, 50vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />}
+              {c.image && <Image src={c.image} alt={c.name} fill unoptimized={isRemoteImageSource(c.image)} sizes="(min-width: 768px) 25vw, 50vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />}
             </div>
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 to-transparent p-4">
               <p className="font-heading text-2xl text-ivory">{c.name}</p>
@@ -72,7 +74,7 @@ export function FeaturedCollections({ collections, title, subtitle }: {
         {collections.map((c) => (
           <Link key={c.id} href={`/collections/${c.slug}`} className="group relative block overflow-hidden rounded-sm bg-line">
             <div className="relative aspect-[3/4]">
-              {c.image && <Image src={c.image} alt={c.name} fill sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw" className="object-cover object-top transition-transform duration-700 group-hover:scale-105" />}
+              {c.image && <Image src={c.image} alt={c.name} fill unoptimized={isRemoteImageSource(c.image)} sizes="(min-width: 1280px) 20vw, (min-width: 768px) 33vw, 50vw" className="object-cover object-top transition-transform duration-700 group-hover:scale-105" />}
             </div>
             <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-ink/70 via-ink/10 to-transparent p-5 text-ivory">
               <p className="font-heading text-3xl">{c.name}</p>
@@ -92,6 +94,17 @@ export function ProductSection({ title, subtitle, href, items }: { title?: strin
     <Wrap className="py-14">
       <SectionHeading title={title ?? "Products"} subtitle={subtitle ?? undefined} href={href} />
       <ProductRail items={items} />
+    </Wrap>
+  );
+}
+
+/** ERP products of one storefront category, with the same cards as its collection page. */
+export function ErpProductSection({ title, subtitle, collectionSlug, items }: { title: string; subtitle?: string | null; collectionSlug: string; items: BarcodeProduct[] }) {
+  if (!items.length) return null;
+  return (
+    <Wrap className="py-14">
+      <SectionHeading title={title} subtitle={subtitle ?? undefined} href={`/collections/${collectionSlug}`} />
+      <BarcodeProductGrid items={items} collectionSlug={collectionSlug} />
     </Wrap>
   );
 }
@@ -138,7 +151,7 @@ export function ChipStrip({ title, subtitle, items }: { title?: string | null; s
       <div className="flex flex-wrap justify-center gap-3">
         {items.map((it) => (
           <Link key={it.href} href={it.href} className="group flex items-center gap-3 rounded-full border border-line bg-white/60 py-2 pl-2 pr-5 text-sm text-olive transition-colors hover:border-gold hover:bg-gold/5">
-            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full">{it.image && <Image src={it.image} alt="" fill sizes="36px" className="object-cover" />}</span>
+            <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full">{it.image && <Image src={it.image} alt="" fill unoptimized={isRemoteImageSource(it.image)} sizes="36px" className="object-cover" />}</span>
             {it.label}
           </Link>
         ))}
@@ -155,7 +168,7 @@ export function LifestyleBanners({ banners }: { banners: BannerDoc[] }) {
         {banners.map((b) => (
           <Link key={String(b._id)} href={b.ctaHref ?? "#"} className="group relative block overflow-hidden rounded-sm bg-line">
             <div className="relative aspect-[4/3] md:aspect-[16/9]">
-              {b.image?.desktop && <Image src={b.image.desktop} alt={b.image.alt ?? b.title ?? ""} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />}
+              {b.image?.desktop && <Image src={b.image.desktop} alt={b.image.alt ?? b.title ?? ""} fill unoptimized={isRemoteImageSource(b.image.desktop)} sizes="(min-width: 768px) 50vw, 100vw" className="object-cover transition-transform duration-700 group-hover:scale-105" />}
             </div>
             <div className="absolute inset-0 flex flex-col justify-center bg-ink/20 p-8 text-ivory">
               {b.subtitle && <p className="text-[11px] uppercase tracking-[0.3em] text-gold">{b.subtitle}</p>}
@@ -196,7 +209,7 @@ export function InstagramStrip({ handle, images }: { handle?: string | null; ima
       <SectionHeading title="On Instagram" subtitle={handle ? `Follow ${handle}` : undefined} align="center" />
       <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
         {images.map((src, i) => (
-          <div key={i} className="relative aspect-square overflow-hidden rounded-sm bg-line"><Image src={src} alt="" fill sizes="16vw" className="object-cover" /></div>
+          <div key={i} className="relative aspect-square overflow-hidden rounded-sm bg-line"><Image src={src} alt="" fill unoptimized={isRemoteImageSource(src)} sizes="16vw" className="object-cover" /></div>
         ))}
       </div>
     </Wrap>

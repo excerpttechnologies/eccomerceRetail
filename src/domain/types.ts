@@ -114,6 +114,7 @@ export interface Customer {
   addresses: Address[];
   gstNumber?: string;
   loyaltyPoints: number;
+  isActive: boolean;
   createdAt?: string;
 }
 
@@ -122,6 +123,7 @@ export type OrderStatus =
   | "Confirmed"
   | "Packed"
   | "Shipped"
+  | "Out for delivery"
   | "Delivered"
   | "Cancelled"
   | "Returned";
@@ -155,8 +157,6 @@ export interface Order {
   orderStatus: OrderStatus;
   shippingAddress: Address;
   awbNo?: string;
-  /** Courier partner shown in shipping notifications (website-only). */
-  courierName?: string;
   storeId?: ID;
   couponCode?: string;
   /** Website-only fulfilment trail (not part of RetailERP). */
@@ -231,6 +231,8 @@ export type ImageIssue = "none" | "placeholder" | "unavailable";
 export interface BarcodeProduct {
   id: ID;
   barcode: string;
+  /** ERP Item reference used to join its ecommerceproduct record. */
+  itemId?: string;
   /** ERP item code; equals the barcode for most unique pieces. */
   itemCode?: string;
   /** Supplier / legacy barcode, only when it differs from `barcode`. */
@@ -239,6 +241,13 @@ export interface BarcodeProduct {
   itemName?: string;
   /** Label print text from RetailERP or the website override. */
   printDescription?: string;
+  ecommerce?: {
+    displayName?: string;
+    itemCode?: string;
+    productType?: string;
+    description?: string;
+    attributes?: Partial<Record<"weave" | "fabric" | "craft" | "occasion" | "color", string>>;
+  };
   group?: string;
   groupId?: string;
   business?: string;
@@ -275,10 +284,12 @@ export interface BarcodeListParams {
   /** Internal storefront filters for the combined ERP clothing catalogue. */
   groupIds?: string[];
   businessIds?: string[];
+  /** Internal storefront filter that excludes website-disabled barcode labels. */
+  excludedBarcodes?: string[];
   /** Internal storefront filter that excludes unavailable ERP labels. */
   availableOnly?: boolean;
-  /** Internal storefront override to allow ERP image checks to finish before render. */
-  imageCheckDeadlineMs?: number;
+  /** Public category listings retain IN_STOCK labels with zero quantity as unavailable products. */
+  inStockStatusOnly?: boolean;
   status?: string;
   group?: string;
   business?: string;
@@ -292,6 +303,12 @@ export interface BarcodeFacets {
   group: FacetOption[];
   business: FacetOption[];
   uomType: FacetOption[];
+  subgroup?: FacetOption[];
+  weave?: FacetOption[];
+  fabric?: FacetOption[];
+  craft?: FacetOption[];
+  occasion?: FacetOption[];
+  color?: FacetOption[];
   total: number;
 }
 

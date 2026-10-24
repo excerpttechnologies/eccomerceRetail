@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import type { CategoryNode } from "@/domain/types";
 import { getMasterData, getSite } from "@/repositories";
 import { collectionToListParams } from "@/repositories/web/site.repository";
-import { getCategoryTree, getSettings } from "@/lib/site-data";
+import { getSettings } from "@/lib/site-data";
+import { getErpFilterChips, getErpHomeSections } from "@/lib/barcode-image-series";
 import { HeroCarousel } from "@/components/home/hero-carousel";
-import { CategoryTiles, ChipStrip, FeaturedCollections, HelpJump, InstagramStrip, LifestyleBanners, Newsletter, ProductSection, SupportPanel, Testimonials, TrustBadges } from "@/components/home/sections";
+import { CategoryTiles, ChipStrip, ErpProductSection, FeaturedCollections, HelpJump, InstagramStrip, LifestyleBanners, Newsletter, ProductSection, SupportPanel, Testimonials, TrustBadges } from "@/components/home/sections";
 
 export const metadata: Metadata = { title: "Handloom Sarees & Fabrics" };
 
@@ -105,7 +106,7 @@ export default async function Home() {
     : [
         { key: "categories", title: "Shop by category", subtitle: null, config: {} },
         { key: "featuredCollections", title: "Curated collections", subtitle: null, config: {} },
-      ]).filter((section) => section.key !== "newArrivals");
+      ]);
   const homeContact = { ...settings.contact, phone: "099163 11500" };
   const configuredHeroSlides = heroBanners
     .filter((banner) => banner.image?.desktop?.trim())
@@ -139,12 +140,11 @@ export default async function Home() {
         case "trust":
           return <TrustBadges key={s.key} badges={settings.trustBadges ?? []} />;
         case "categories": {
-          const categories = await getCategoryTree();
-          const categoryTiles = categories.length ? categories : defaultCategories;
+          // The ERP category pages, never the demo category tree.
           return (
             <CategoryTiles
               key={s.key}
-              categories={categoryTiles.map((category) => ({
+              categories={defaultCategories.map((category) => ({
                 ...category,
                 image: categoryImageOverrides[category.slug] ?? category.image,
               }))}
@@ -154,36 +154,40 @@ export default async function Home() {
           );
         }
         case "featuredCollections": {
-          const collections = await site.collections({ featuredOnly: true });
-          const curatedCollections = collections.length
-            ? collections.map((collection) => ({
-                id: String(collection._id),
-                name: collection.name,
-                slug: collection.slug,
-                description: collection.description,
-                image: collection.banner?.desktop,
-              }))
-            : defaultFeaturedCollections;
+          // Only ERP categories that have published products; the curated images are kept.
+          const erpSections = await getErpHomeSections(limit);
+          if (!erpSections.length) return null;
           return (
             <FeaturedCollections
               key={s.key}
-              collections={[
-                ...curatedCollections,
-                ...defaultFeaturedCollections.slice(curatedCollections.length, 5),
-              ]
-                .slice(0, 5)
-                .map((collection, index) => ({
-                  ...collection,
-                  image: defaultFeaturedCollections[index].image,
-                }))}
+              collections={erpSections.slice(0, 5).map((section, index) => ({
+                id: `erp-${section.group}`,
+                name: section.title,
+                slug: section.group,
+                description: `${section.total} ${section.total === 1 ? "piece" : "pieces"} available`,
+                image: defaultFeaturedCollections[index].image,
+              }))}
               title={s.title}
               subtitle={s.subtitle}
             />
           );
         }
         case "newArrivals": {
-          const r = await master.products.list({ newArrivals: true, sort: "newest", limit });
-          return <ProductSection key={s.key} title={s.title ?? "New arrivals"} subtitle={s.subtitle} href="/collections/new-arrivals" items={r.items} />;
+          // Newest published ERP products, one row per storefront category.
+          const erpSections = await getErpHomeSections(limit);
+          return (
+            <div key={s.key}>
+              {erpSections.map((section, index) => (
+                <ErpProductSection
+                  key={section.group}
+                  title={index === 0 && s.title ? `${s.title} · ${section.title}` : section.title}
+                  subtitle={index === 0 ? s.subtitle : undefined}
+                  collectionSlug={section.group}
+                  items={section.items}
+                />
+              ))}
+            </div>
+          );
         }
         case "bestSellers": {
           const r = await master.products.list({ sort: "best_selling", limit });
@@ -196,21 +200,20 @@ export default async function Home() {
           return <ProductSection key={s.key + col.slug} title={s.title ?? col.name} subtitle={s.subtitle ?? col.description} href={`/collections/${col.slug}`} items={r.items} />;
         }
         case "occasions": {
-          const values = await master.products.distinctValues("occasion");
-          const sample = await master.products.list({ limit: 1 });
-          return <ChipStrip key={s.key} title={s.title ?? "Shop by occasion"} subtitle={s.subtitle} items={values.slice(0, 8).map((v, i) => ({ label: v, href: `/collections/sarees?occasion=${encodeURIComponent(v)}`, image: sample.items[0]?.images[i % 2] }))} />;
+          const chips = await getErpFilterChips("occasion");
+          return <ChipStrip key={s.key} title={s.title ?? "Shop by occasion"} subtitle={s.subtitle} items={chips.slice(0, 8)} />;
         }
         case "fabrics": {
-          const values = await master.products.distinctValues("fabric");
-          return <ChipStrip key={s.key} title={s.title ?? "Shop by fabric"} subtitle={s.subtitle} items={values.slice(0, 12).map((v) => ({ label: v, href: `/collections/sarees?fabric=${encodeURIComponent(v)}` }))} />;
+          const chips = await getErpFilterChips("fabric");
+          return <ChipStrip key={s.key} title={s.title ?? "Shop by fabric"} subtitle={s.subtitle} items={chips.slice(0, 12)} />;
         }
         case "lifestyle":
           return <LifestyleBanners key={s.key} banners={await site.banners("lifestyle")} />;
         case "testimonials":
           return <Testimonials key={s.key} items={await site.testimonials()} title={s.title} />;
         case "instagram": {
-          const r = await master.products.list({ sort: "newest", limit: 6 });
-          return <InstagramStrip key={s.key} handle={settings.social?.instagram ? "@" + settings.social.instagram.split("/").filter(Boolean).pop() : undefined} images={r.items.map((p) => p.images[0]).filter(Boolean)} />;
+          const images = (await getErpHomeSections(limit)).flatMap((section) => section.items.flatMap((item) => (item.image ? [item.image] : []))).slice(0, 6);
+          return <InstagramStrip key={s.key} handle={settings.social?.instagram ? "@" + settings.social.instagram.split("/").filter(Boolean).pop() : undefined} images={images} />;
         }
         case "newsletter":
           return <Newsletter key={s.key} title={s.title} subtitle={s.subtitle} />;

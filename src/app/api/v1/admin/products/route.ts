@@ -6,9 +6,14 @@ import { fail, handler, ok } from "@/lib/api/response";
 import { parseBarcodeListParams } from "@/lib/api/query";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
-import { getWebConnection, redactMongoUri } from "@/lib/db";
+import { getErpConnection, getWebConnection, redactMongoUri } from "@/lib/db";
 import { ERP_BARCODE_COLLECTIONS } from "@/lib/erp-mapping";
 import { ProductWebMetaModel } from "@/models/web/content.models";
+import {
+  erpEcommerceKey,
+  loadErpEcommerceCatalogs,
+  type ErpEcommerceCatalog,
+} from "@/lib/admin/erp-ecommerce-catalog";
 import { getBarcodeLabels } from "@/repositories";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +40,25 @@ export const GET = handler(async (req: NextRequest) => {
 
   // The overlay is optional: if the web database is down the ERP rows still load.
   const web = new Map<string, Record<string, unknown>>();
+  const erpEcommerce = new Map<string, ErpEcommerceCatalog>();
+  try {
+    if (r.items.length) {
+      const connection = await getErpConnection();
+      if (!connection.db) throw new Error("RetailERP database connection is not ready");
+      const catalogs = await loadErpEcommerceCatalogs(connection, r.items);
+      for (const product of r.items) {
+        const key = erpEcommerceKey(product.itemId, product.businessId);
+        if (key) {
+          const catalog = catalogs.get(key);
+          if (catalog) erpEcommerce.set(product.id, catalog);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("[admin/products] ERP e-commerce lookup failed:", redactMongoUri(String((e as Error)?.message ?? e)));
+    return fail("ERP_UNAVAILABLE", "Unable to load e-commerce details from RetailERP. Please try again.", 503);
+  }
+
   try {
     const metas = await ProductWebMetaModel(await getWebConnection())
       .find({ sku: { $in: Array.from(new Set(r.items.map((p) => p.barcode))) } })
@@ -48,6 +72,7 @@ export const GET = handler(async (req: NextRequest) => {
         barcodePriceOverride: m.barcodePriceOverride,
         barcodeQtyOverride: m.barcodeQtyOverride,
         barcodeStatusOverride: m.barcodeStatusOverride,
+        productName: m.productName,
         itemName: m.itemName,
         barcodeName: m.barcodeName,
         productType: m.productType,
@@ -63,6 +88,7 @@ export const GET = handler(async (req: NextRequest) => {
         printDescriptionOverride: m.printDescriptionOverride,
         ecommOffPercent: m.ecommOffPercent,
         isFeatured: m.isFeatured,
+        isActive: m.isActive,
         salesCount: m.salesCount,
       });
     }
@@ -72,7 +98,11 @@ export const GET = handler(async (req: NextRequest) => {
 
   const { items, ...meta } = r;
   return ok(
-    items.map((p) => ({ ...p, web: web.get(p.barcode) ?? null })),
+    items.map((p) => ({
+      ...p,
+      web: web.get(p.barcode) ?? null,
+      erpEcommerce: erpEcommerce.get(p.id) ?? null,
+    })),
     { ...meta, source: "erp", collection: ERP_BARCODE_COLLECTIONS.labels, readOnly: true },
   );
 });
@@ -85,6 +115,7 @@ export const PATCH = handler(async (req: NextRequest) => {
     slug: z.string().regex(/^[a-z0-9-]+$/).optional(),
     seoTitle: z.string().max(120).optional(),
     seoDescription: z.string().max(240).optional(),
+    productName: z.string().trim().max(160).nullable().optional(),
     itemName: z.string().trim().max(160).nullable().optional(),
     barcodeName: z.string().trim().max(160).nullable().optional(),
     productType: z.enum(["SAREES", "FABRICS", "PLAIN FABRICS", "DUPATTA", "NEW ARRIVALS"]).nullable().optional(),
@@ -103,10 +134,11 @@ export const PATCH = handler(async (req: NextRequest) => {
     barcodeQtyOverride: z.number().finite().min(0).max(1_000_000).nullable().optional(),
     barcodeStatusOverride: z.enum(["IN_STOCK", "IN_TRANSIT", "SOLD", "HISTORY", "VOID"]).nullable().optional(),
     isFeatured: z.boolean().optional(),
+    isActive: z.boolean().optional(),
     extraImages: z.array(z.string()).optional(),
     webTags: z.array(z.string()).optional(),
-  }).refine(({ slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, weaveDescription, fabricDescription, craftDescription, occasionDescription, colorDescription, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags }) =>
-    [slug, seoTitle, seoDescription, itemName, barcodeName, productType, itemType, weaveDescription, fabricDescription, craftDescription, occasionDescription, colorDescription, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, extraImages, webTags].some((value) => value !== undefined)));
+  }).refine(({ slug, seoTitle, seoDescription, productName, itemName, barcodeName, productType, itemType, weaveDescription, fabricDescription, craftDescription, occasionDescription, colorDescription, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, isActive, extraImages, webTags }) =>
+    [slug, seoTitle, seoDescription, productName, itemName, barcodeName, productType, itemType, weaveDescription, fabricDescription, craftDescription, occasionDescription, colorDescription, groupNameOverride, supplierCodeOverride, supplierNameOverride, printDescriptionOverride, ecommOffPercent, barcodePriceOverride, barcodeQtyOverride, barcodeStatusOverride, isFeatured, isActive, extraImages, webTags].some((value) => value !== undefined)));
   if (!b.ok) return b.res;
   const { sku, ...patch } = b.data;
   let product;
@@ -121,13 +153,13 @@ export const PATCH = handler(async (req: NextRequest) => {
   const before = await M.findOne({ sku }).lean();
   const set: Record<string, unknown> = {};
   const unset: Record<string, 1> = {};
-  for (const key of ["itemName", "barcodeName", "productType", "itemType", "weaveDescription", "fabricDescription", "craftDescription", "occasionDescription", "colorDescription", "groupNameOverride", "supplierCodeOverride", "supplierNameOverride", "printDescriptionOverride", "ecommOffPercent", "barcodePriceOverride", "barcodeQtyOverride", "barcodeStatusOverride"] as const) {
+  for (const key of ["productName", "itemName", "barcodeName", "productType", "itemType", "weaveDescription", "fabricDescription", "craftDescription", "occasionDescription", "colorDescription", "groupNameOverride", "supplierCodeOverride", "supplierNameOverride", "printDescriptionOverride", "ecommOffPercent", "barcodePriceOverride", "barcodeQtyOverride", "barcodeStatusOverride"] as const) {
     const value = patch[key];
     if (value === undefined) continue;
     if (value !== null && value !== "") set[key] = value;
     else unset[key] = 1;
   }
-  for (const key of ["slug", "seoTitle", "seoDescription", "isFeatured", "extraImages", "webTags"] as const) {
+  for (const key of ["slug", "seoTitle", "seoDescription", "isFeatured", "isActive", "extraImages", "webTags"] as const) {
     const value = patch[key];
     if (value !== undefined) set[key] = value;
   }

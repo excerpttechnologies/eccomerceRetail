@@ -1,6 +1,15 @@
 import { Schema, type Connection, type InferSchemaType } from "mongoose";
 import { getModel } from "../_util";
 
+const ClassificationOptionSchema = new Schema(
+  {
+    productType: { type: String, required: true },
+    field: { type: String, required: true },
+    value: { type: String, required: true },
+  },
+  { _id: false },
+);
+
 /* ---------------- Site settings (singleton, key = "default") ---------------- */
 export const SiteSettingsSchema = new Schema(
   {
@@ -45,10 +54,12 @@ export const SiteSettingsSchema = new Schema(
       freeShippingAbove: { type: Number, default: 4999 },
       shippingCharge: { type: Number, default: 149 },
       codEnabled: { type: Boolean, default: true },
-      razorpayEnabled: { type: Boolean, default: false },
+      razorpayEnabled: { type: Boolean, default: true },
       serviceablePincodePrefixes: { type: [String], default: [] }, // [] = all India
     },
     trustBadges: [{ title: String, text: String, icon: String }],
+    classificationOptions: { type: [ClassificationOptionSchema], default: [] },
+    deletedClassificationOptions: { type: [ClassificationOptionSchema], default: [] },
     erp: {
       lastSyncAt: Date,
       lastSyncStatus: String,
@@ -194,6 +205,7 @@ export const ProductWebMetaSchema = new Schema(
     barcodePriceOverride: { type: Number, min: 0 },
     barcodeQtyOverride: { type: Number, min: 0 },
     barcodeStatusOverride: String,
+    productName: String,
     itemName: String,
     barcodeName: String,
     productType: String,
@@ -214,6 +226,7 @@ export const ProductWebMetaSchema = new Schema(
     extraImages: { type: [String], default: [] },
     webTags: { type: [String], default: [] },
     isFeatured: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
     sortWeight: { type: Number, default: 0 },
     salesCount: { type: Number, default: 0 },
     viewCount: { type: Number, default: 0 },

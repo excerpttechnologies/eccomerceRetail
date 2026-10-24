@@ -37,10 +37,10 @@ export const OrderSchema = new Schema(
       [O.orderStatus]: { type: String, default: "Placed", index: true },
       [O.shippingAddress]: AddressSchema,
       [O.awbNo]: String,
-      /** Website-only: courier partner entered by admin for shipping notifications. */
-      courierName: String,
       [O.storeId]: Schema.Types.Mixed,
       [O.couponCode]: String,
+      paymentGatewayOrderId: { type: String, unique: true, sparse: true },
+      paymentTransactionId: { type: String, unique: true, sparse: true },
       [O.createdAt]: { type: Date, default: Date.now, index: true },
     }),
     // website-only audit trail (not ERP fields)

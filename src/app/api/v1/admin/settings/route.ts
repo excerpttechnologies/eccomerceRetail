@@ -5,6 +5,7 @@ import { handler, ok } from "@/lib/api/response";
 import { audit } from "@/lib/audit";
 import { requireAdmin } from "@/lib/auth";
 import { getWebConnection } from "@/lib/db";
+import { env } from "@/lib/env";
 import { SiteSettingsModel } from "@/models/web/content.models";
 import { getSite } from "@/repositories";
 
@@ -29,7 +30,11 @@ const Settings = z.object({
 
 export const GET = handler(async () => {
   await requireAdmin("settings:write");
-  return ok(await getSite().settings());
+  const settings = await getSite().settings();
+  return ok({
+    ...settings,
+    erp: { ...settings.erp, dataSource: env.DATA_SOURCE, dbName: env.ERP_DB_NAME },
+  });
 });
 
 /** PATCH — deep-merges nested groups so partial updates don't wipe siblings. */

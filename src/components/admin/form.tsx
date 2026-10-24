@@ -5,7 +5,7 @@ import { PERMISSIONS } from "@/models/web/commerce.models";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
 
-export type FieldType = "text" | "textarea" | "number" | "boolean" | "select" | "json" | "image" | "date" | "tags" | "permissions" | "color";
+export type FieldType = "text" | "textarea" | "number" | "boolean" | "select" | "json" | "image" | "date" | "tags" | "permissions" | "color" | "mobile";
 export interface FieldSpec {
   name: string; // dot path supported (image.desktop)
   label: string;
@@ -54,6 +54,7 @@ export function SpecForm({ fields, initial, onSubmit, submitLabel = "Save", busy
         switch (f.type) {
           case "textarea": return wrap(<Textarea value={val ?? ""} required={f.required} placeholder={f.placeholder} onChange={(e) => upd(f.name, e.target.value)} />);
           case "number": return wrap(<Input type="number" step="any" value={val ?? ""} required={f.required} onChange={(e) => upd(f.name, e.target.value === "" ? undefined : Number(e.target.value))} />);
+          case "mobile": return wrap(<Input type="tel" inputMode="numeric" autoComplete="tel-national" maxLength={10} pattern="[6-9][0-9]{9}" title="Enter a valid 10-digit Indian mobile number starting with 6-9" value={val ?? ""} required={f.required} placeholder="10-digit mobile number" onChange={(e) => upd(f.name, e.target.value.replace(/\D/g, "").slice(0, 10))} />);
           case "boolean": return wrap(<label className="flex h-10 items-center gap-2 text-sm"><input type="checkbox" checked={!!val} onChange={(e) => upd(f.name, e.target.checked)} className="h-4 w-4 accent-[var(--we-olive)]" /> {val ? "Yes" : "No"}</label>);
           case "select": {
             const opts = typeof f.options === "function" ? f.options() : (f.options ?? []);

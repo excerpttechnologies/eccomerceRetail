@@ -30,7 +30,20 @@ export const GET = handler(async (req: NextRequest, ctx: { params: Promise<{ res
   if (q) match.$or = def.search.map((f) => ({ [f]: { $regex: escapeRegex(q), $options: "i" } }));
   for (const [k, v] of sp.entries()) {
     const m = /^filter\[(\w+)\]$/.exec(k);
-    if (m && v !== "") match[m[1]] = v === "true" ? true : v === "false" ? false : v;
+    if (!m || v === "") continue;
+    if (resource === "coupons" && m[1] === "status") {
+      const now = new Date();
+      if (v === "active") {
+        match.isActive = true;
+        match.$and = [{ $or: [{ validFrom: null }, { validFrom: { $exists: false } }, { validFrom: { $lte: now } }] }, { $or: [{ validTo: null }, { validTo: { $exists: false } }, { validTo: { $gte: now } }] }];
+      } else if (v === "expired") match.validTo = { $lt: now };
+      else if (v === "inactive") match.isActive = false;
+      else if (v === "scheduled") match.validFrom = { $gt: now };
+      else if (v === "advertised") match.isAdvertised = true;
+      else if (v === "redeemed") match.usedCount = { $gt: 0 };
+      continue;
+    }
+    match[m[1]] = v === "true" ? true : v === "false" ? false : v;
   }
   let sort = def.sort;
   const s = sp.get("sort");
