@@ -33,6 +33,9 @@ export class MongoCustomerRepository implements CustomerRepository {
       {
         $setOnInsert: buildCustomerDoc({
           mobile: input.mobile,
+          // Name goes here only when none was given (empty string); otherwise $set below writes it,
+          // because MongoDB rejects the same path appearing in both $set and $setOnInsert.
+          ...(input.name ? {} : { name: "" }),
           loyaltyPoints: 0,
           addresses: [],
           createdAt: new Date(),

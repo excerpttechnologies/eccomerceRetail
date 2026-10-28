@@ -97,3 +97,15 @@ export async function verifyRazorpayPayment(
     captured.currency === "INR" &&
     captured.status === "captured";
 }
+
+/**
+ * Verifies a Razorpay webhook signature (X-Razorpay-Signature) against the raw request body.
+ * The body must be the untouched request text. Uses RAZORPAY_WEBHOOK_SECRET.
+ */
+export function verifyWebhookSignature(rawBody: string, signature: string): boolean {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim();
+  if (!secret || !/^[a-f\d]{64}$/i.test(signature)) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest();
+  const actual = Buffer.from(signature, "hex");
+  return actual.length === expected.length && timingSafeEqual(expected, actual);
+}

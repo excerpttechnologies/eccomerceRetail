@@ -5,12 +5,18 @@ import { cn, isRemoteImageSource } from "@/lib/utils";
 import type { MenuNode } from "@/repositories/web/site.repository";
 
 /** Full-width mega menu. Columns = child "group" nodes; leaves = links (attribute filters). */
-export function MegaMenu({ item, open }: { item: MenuNode; open: boolean }) {
+export function MegaMenu({ item, open, onNavigate }: { item: MenuNode; open: boolean; onNavigate?: () => void }) {
   const groups = item.children.filter((c) => c.kind === "group" && c.children.length);
   const loose = item.children.filter((c) => c.kind === "link");
   const image = item.image ?? item.children.find((c) => c.image)?.image;
+  // Lets the redesigned header close the menu (and its dialogs) when a link is followed.
+  const closeOnNavigate = (e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest("a")) onNavigate?.();
+  };
   return (
-    <div className={cn("absolute inset-x-0 top-full border-b border-line bg-ivory shadow-[0_24px_40px_-24px_rgba(0,0,0,0.35)] transition-all duration-200", open ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0")}>
+    <div
+      onClick={closeOnNavigate}
+      className={cn("absolute inset-x-0 top-full border-b border-line bg-ivory shadow-[0_24px_40px_-24px_rgba(0,0,0,0.35)] transition-all duration-200", open ? "visible translate-y-0 opacity-100" : "invisible -translate-y-1 opacity-0")}>
       <div className="mx-auto grid max-w-site grid-cols-12 gap-8 px-6 py-8">
         <div className={cn("grid gap-8", image ? "col-span-9" : "col-span-12", groups.length >= 4 ? "grid-cols-4" : "grid-cols-3")}>
           {groups.map((g) => (
