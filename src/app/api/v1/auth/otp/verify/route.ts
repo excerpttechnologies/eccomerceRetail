@@ -15,7 +15,10 @@ export const POST = handler(async (req: NextRequest) => {
   if (!mobile) return fail("VALIDATION_ERROR", "Invalid mobile", 422);
   if (!(await verifyOtp(mobile, b.data.code))) return fail("OTP_INVALID", "Incorrect or expired code", 401);
 
-  const customer = await getCustomers().upsertByMobile({ mobile, name: b.data.name });
+  // The number has just been proven with the OTP, so attaching this session to the
+  // existing customer record for the same mobile is safe. Unverified registration
+  // (email + password) deliberately does NOT do this.
+  const customer = await getCustomers().upsertByMobile({ mobile, name: b.data.name?.trim() || undefined });
   await startCustomerSession(customer);
   return ok({ id: customer.id, name: customer.name, mobile });
 });

@@ -157,6 +157,8 @@ export interface Order {
   orderStatus: OrderStatus;
   shippingAddress: Address;
   awbNo?: string;
+  /** Courier partner shown in shipping notifications (website-only). */
+  courierName?: string;
   storeId?: ID;
   couponCode?: string;
   /** Website-only fulfilment trail (not part of RetailERP). */

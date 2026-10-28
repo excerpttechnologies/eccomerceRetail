@@ -26,12 +26,13 @@ export class MongoCustomerRepository implements CustomerRepository {
 
   async upsertByMobile(input: { mobile: string; name?: string; email?: string }): Promise<Customer> {
     const M = await this.M();
+    // Keep `name`/`email` out of $setOnInsert when they are also in $set: MongoDB rejects
+    // overlapping update paths (code 40) when the same field appears in both operators.
     const doc = await M.findOneAndUpdate(
       { [C.mobile]: input.mobile },
       {
         $setOnInsert: buildCustomerDoc({
           mobile: input.mobile,
-          name: input.name ?? "",
           loyaltyPoints: 0,
           addresses: [],
           createdAt: new Date(),

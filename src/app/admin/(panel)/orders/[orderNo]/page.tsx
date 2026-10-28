@@ -56,7 +56,7 @@ export default function OrderDetail() {
             <p className="text-muted">{o.customer?.mobile ?? a.phone}{o.customer?.email ? ` · ${o.customer.email}` : ""}</p>
             <p className="mt-3 mb-1 text-[10px] uppercase tracking-widest text-muted">Ship to</p>
             <p>{a.line1}{a.line2 ? `, ${a.line2}` : ""}<br />{a.city}, {a.state} {a.pincode}<br />{a.phone}</p>
-            {o.awbNo && <p className="mt-3 text-xs">AWB: <b>{o.awbNo}</b></p>}
+            {o.awbNo && <p className="mt-3 text-xs">AWB: <b>{o.awbNo}</b>{o.courierName ? ` · ${o.courierName}` : ""}</p>}
           </div>
           <p className="rounded-sm border border-line bg-ivory p-4 text-sm text-muted">
             RetailERP order records are read-only here. Update status and tracking in RetailERP.
